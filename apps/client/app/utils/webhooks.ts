@@ -43,35 +43,38 @@ export interface WebhookEventType {
   summary: string
   /** What `data` holds, in a few words. */
   holds: string
-  /** Sent from test builds too: sandbox purchases, a staging publish. */
+  /** Belongs to an environment, and so is heard only by destinations listening to it. */
   environments: boolean
+  /** Sent by PlayerSense yet. A destination may listen to one that is not, and hears it once it is. */
+  emitted: boolean
 }
 
+/** The catalog, as GET /webhook-events serves it (internal/webhooks/catalog.go), with `holds`. */
 export const WEBHOOK_EVENTS: readonly WebhookEventType[] = [
-  { type: 'purchase.verified', group: 'purchases', summary: 'A purchase was confirmed with the store. Grant the item on this one.', holds: 'The purchase: player, product, price, store transaction', environments: true },
-  { type: 'purchase.rejected', group: 'purchases', summary: 'A receipt did not check out with the store. Nothing should be granted.', holds: 'The purchase and why the store refused it', environments: true },
-  { type: 'purchase.refunded', group: 'purchases', summary: 'The store refunded a purchase. Take back what it granted, if you do.', holds: 'The purchase, when and why it was refunded', environments: true },
-  { type: 'subscription.started', group: 'subscriptions', summary: 'A player subscribed, trial included.', holds: 'The subscription: player, product, period, renews at', environments: true },
-  { type: 'subscription.renewed', group: 'subscriptions', summary: 'A subscription renewed for another period.', holds: 'The subscription and its new period', environments: true },
-  { type: 'subscription.canceled', group: 'subscriptions', summary: 'A player turned renewal off. It stays on until its period ends.', holds: 'The subscription and when it will end', environments: true },
-  { type: 'subscription.expired', group: 'subscriptions', summary: 'A subscription ended and did not renew. Take away what it gave.', holds: 'The subscription and why it ended', environments: true },
-  { type: 'subscription.billing_issue', group: 'subscriptions', summary: 'The store could not charge for a renewal and is retrying.', holds: 'The subscription and the store\'s grace period', environments: true },
-  { type: 'config.published', group: 'publishing', summary: 'A config was published to an environment: flags, experiments and Live Ops.', holds: 'The environment, the version, who published and what changed', environments: true },
-  { type: 'config.rolled_back', group: 'publishing', summary: 'An environment was rolled back to an earlier version.', holds: 'The environment, both versions, who and why', environments: true },
-  { type: 'liveops.window.started', group: 'liveops', summary: 'A Live Ops event came on: one of its windows opened.', holds: 'The event, its window and its payload', environments: true },
-  { type: 'liveops.window.ended', group: 'liveops', summary: 'A Live Ops event\'s window closed.', holds: 'The event and the window that closed', environments: true },
-  { type: 'experiment.started', group: 'experiments', summary: 'An experiment started taking players.', holds: 'The experiment, its variants and its traffic', environments: false },
-  { type: 'experiment.concluded', group: 'experiments', summary: 'An experiment ended with a winner, or with none.', holds: 'The experiment, the variant kept and its result', environments: false },
-  { type: 'alert.triggered', group: 'alerts', summary: 'A metric crossed a line an alert watches.', holds: 'The alert, the metric, its value and the line', environments: false },
-  { type: 'alert.resolved', group: 'alerts', summary: 'A metric came back inside its line.', holds: 'The alert and how long it was out', environments: false },
-  { type: 'export.completed', group: 'data', summary: 'An export finished. Its files are ready to download for seven days.', holds: 'The export, its files and their signed links', environments: false },
-  { type: 'export.failed', group: 'data', summary: 'An export could not be finished.', holds: 'The export and what went wrong', environments: false },
-  { type: 'player.deleted', group: 'data', summary: 'A player\'s data was erased, on their request or yours.', holds: 'The player id and when the erasure finished', environments: true },
-  { type: 'member.added', group: 'project', summary: 'Somebody joined the project.', holds: 'The member, their role and who invited them', environments: false },
-  { type: 'member.removed', group: 'project', summary: 'Somebody left the project or was removed from it.', holds: 'The member and who removed them', environments: false },
-  { type: 'api_key.created', group: 'project', summary: 'A key was made.', holds: 'The key\'s class, environment and name. Never the key.', environments: false },
-  { type: 'api_key.revoked', group: 'project', summary: 'A key was revoked. Anything still using it is refused from now.', holds: 'The key\'s class, environment and name', environments: false },
-  { type: 'usage.threshold_reached', group: 'project', summary: 'The project reached a share of its plan: 80% and 100% of events or players.', holds: 'The meter, the threshold and the period', environments: false }
+  { type: 'purchase.verified', group: 'purchases', summary: 'A purchase was confirmed with the store. Grant the item on this one.', holds: 'The purchase: player, product, price, store transaction', environments: true, emitted: true },
+  { type: 'purchase.rejected', group: 'purchases', summary: 'A receipt did not check out with the store. Nothing should be granted.', holds: 'The purchase and why the store refused it', environments: true, emitted: true },
+  { type: 'purchase.refunded', group: 'purchases', summary: 'The store refunded a purchase. Take back what it granted, if you do.', holds: 'The purchase, and when and why it was refunded', environments: true, emitted: true },
+  { type: 'subscription.started', group: 'subscriptions', summary: 'A player subscribed, trial included.', holds: 'The subscription: player, product, period, renews at', environments: true, emitted: false },
+  { type: 'subscription.renewed', group: 'subscriptions', summary: 'A subscription renewed for another period.', holds: 'The subscription and its new period', environments: true, emitted: false },
+  { type: 'subscription.canceled', group: 'subscriptions', summary: 'A player turned renewal off. It stays on until its period ends.', holds: 'The subscription and when it will end', environments: true, emitted: false },
+  { type: 'subscription.expired', group: 'subscriptions', summary: 'A subscription ended and did not renew.', holds: 'The subscription and why it ended', environments: true, emitted: false },
+  { type: 'subscription.billing_issue', group: 'subscriptions', summary: 'The store could not charge for a renewal and is retrying.', holds: 'The subscription and the store\'s grace period', environments: true, emitted: false },
+  { type: 'config.published', group: 'publishing', summary: 'A config was published to an environment.', holds: 'The environment, the version, who published and how much changed', environments: true, emitted: true },
+  { type: 'config.rolled_back', group: 'publishing', summary: 'An environment was rolled back to an earlier version.', holds: 'The environment, both versions and who rolled it back', environments: true, emitted: true },
+  { type: 'liveops.window.started', group: 'liveops', summary: 'A Live Ops event came on: one of its windows opened.', holds: 'The event, its window and its payload', environments: true, emitted: false },
+  { type: 'liveops.window.ended', group: 'liveops', summary: 'A Live Ops event\'s window closed.', holds: 'The event and the window that closed', environments: true, emitted: false },
+  { type: 'experiment.started', group: 'experiments', summary: 'An experiment started taking players.', holds: 'The experiment, its flag and its arms', environments: false, emitted: true },
+  { type: 'experiment.concluded', group: 'experiments', summary: 'An experiment ended with a winner, or with none.', holds: 'The experiment, its flag and its arms', environments: false, emitted: true },
+  { type: 'alert.triggered', group: 'alerts', summary: 'A metric crossed a line an alert watches.', holds: 'The alert, the metric, its value and the line', environments: false, emitted: false },
+  { type: 'alert.resolved', group: 'alerts', summary: 'A metric came back inside its line.', holds: 'The alert and how long it was out', environments: false, emitted: false },
+  { type: 'export.completed', group: 'data', summary: 'An export finished. Its files are ready to download.', holds: 'The export, whose it is and how it ended', environments: false, emitted: true },
+  { type: 'export.failed', group: 'data', summary: 'An export could not be finished.', holds: 'The export, whose it is and how it ended', environments: false, emitted: true },
+  { type: 'player.deleted', group: 'data', summary: 'A player\'s data was erased, on their request or yours.', holds: 'The player id, when erasure was asked for and when it finished', environments: false, emitted: true },
+  { type: 'member.added', group: 'project', summary: 'Somebody joined the project.', holds: 'The member\'s address and role', environments: false, emitted: true },
+  { type: 'member.removed', group: 'project', summary: 'Somebody left the project or was removed from it.', holds: 'The member\'s address and role', environments: false, emitted: true },
+  { type: 'api_key.created', group: 'project', summary: 'A key was made.', holds: 'The key\'s kind, environment, name and prefix. Never the key.', environments: false, emitted: true },
+  { type: 'api_key.revoked', group: 'project', summary: 'A key was revoked. Anything still using it is refused from now.', holds: 'The key\'s kind, environment, name and prefix', environments: false, emitted: true },
+  { type: 'usage.threshold_reached', group: 'project', summary: 'The project reached a share of its plan.', holds: 'The meter, the threshold and the period', environments: false, emitted: false }
 ]
 
 export const WEBHOOK_EVENT: Record<string, WebhookEventType> = Object.fromEntries(WEBHOOK_EVENTS.map(entry => [entry.type, entry]))
@@ -122,17 +125,17 @@ export const WEBHOOK_HEALTH: Record<WebhookHealth, { label: string, tone: BadgeT
 
 export interface WebhookHeader {
   name: string
+  /** Empty for a secret header as it is read back: its value is never shown again once saved. */
   value: string
   /** A token: stored encrypted, and never shown again once saved, in a delivery or here. */
   secret?: boolean
 }
 
+/** The signing secret's dates. The secret itself is only read on request (GET …/secret). */
 export interface WebhookSecret {
-  /** The whole secret. Shown on request, never in a list. */
-  value: string
   created_at: string
-  /** The secret it replaced, still signing beside it until this moment. */
-  previous?: { value: string, expires_at: string }
+  /** The secret it replaced still signs beside it until then. */
+  previous_expires_at?: string
 }
 
 export interface WebhookHistoryEntry {
@@ -140,6 +143,22 @@ export interface WebhookHistoryEntry {
   actor: string
   text: string
 }
+
+/** A destination's last 24 hours, as the API counts them. */
+export interface WebhookDay {
+  deliveries: number
+  /** The share delivered at their first try. */
+  firstTry: number
+  /** The share of every try answered 2xx. */
+  trySuccess: number
+  succeeded: number
+  /** Deliveries that gave up. */
+  failed: number
+  p50: number
+  p95: number
+}
+
+export const NO_DAY: WebhookDay = { deliveries: 0, firstTry: 0, trySuccess: 0, succeeded: 0, failed: 0, p50: 0, p95: 0 }
 
 export interface WebhookDestination {
   id: string
@@ -151,27 +170,32 @@ export interface WebhookDestination {
   /** Whose events it hears: production's alone, or test builds' too. */
   environments: EnvironmentKind[]
   status: WebhookStatus
+  health: WebhookHealth
   /** Why it is off: turned off by somebody, or by PlayerSense after three days of failures. */
   disabled_reason?: 'manual' | 'failing'
+  disabled_at?: string
+  /** When every try started failing. */
+  failing_since?: string
+  /** When it is turned off if nothing lands before. */
+  auto_disable_at?: string
   /** The payload version its events are written in. */
   version: string
   /** Sent with every delivery, for a gateway in front of the URL that wants its own token. */
   headers: WebhookHeader[]
   secret: WebhookSecret
+  /** Deliveries owed another try now. */
+  retrying: number
+  lastDay: WebhookDay
   created_at: string
+  created_by: string
   updated_at: string
   updated_by: string
+  /** Newest first; only on a destination read by itself. */
   history: WebhookHistoryEntry[]
 }
 
-/** The payload versions, newest first. A destination keeps its own until it is moved on. */
-export const WEBHOOK_VERSIONS = [
-  { value: '2026-09-01', label: '2026-09-01', note: 'Latest. Subscriptions carry the store\'s grace period.' },
-  { value: '2026-04-15', label: '2026-04-15', note: 'Prices as { amount, currency, usd } rather than cents.' },
-  { value: '2025-11-01', label: '2025-11-01', note: 'The first version.' }
-] as const
-
-export const LATEST_VERSION = WEBHOOK_VERSIONS[0].value
+/** The version every body is written in. There is one: nothing live needs an older shape. */
+export const WEBHOOK_API_VERSION = '2026-09-01'
 
 /** Why a URL will not do, or null. The server says the same before it saves one. */
 export function urlProblem(text: string): string | null {
@@ -213,7 +237,9 @@ export const DELIVERY_STATUS: Record<DeliveryStatus, { label: string, tone: Badg
 
 export const DELIVERY_STATUSES = Object.keys(DELIVERY_STATUS) as DeliveryStatus[]
 
+/** One try of a delivery (WebhookTryOut). */
 export interface DeliveryAttempt {
+  number: number
   at: number
   /** The HTTP status; null when no answer came at all. */
   code: number | null
@@ -222,23 +248,38 @@ export interface DeliveryAttempt {
   ms: number
   /** The answer's body, cut at 4 KB. */
   body: string
+  outcome: DeliveryStatus
+  /** When the next try is due, after this one failed. */
+  next?: number
   /** Sent by somebody from the dashboard, not by the retry schedule. */
   manual?: boolean
 }
 
+/** A delivery as the log lists it: where it stands and what its last try got back. */
 export interface WebhookDelivery {
   id: string
   destinationId: string
   eventId: string
   type: string
-  environment: EnvironmentKind
+  /** Absent for a project's own event, which belongs to no environment. */
+  environment?: EnvironmentKind
   created: number
   status: DeliveryStatus
-  attempts: DeliveryAttempt[]
+  /** How many tries it has had. */
+  attempts: number
+  lastAt: number
+  lastCode: number | null
+  lastError?: string
   /** When the next try is due, for a delivery still retrying. */
   next?: number
   /** Sent from the dashboard as a test, with a made-up event. */
   test?: boolean
+}
+
+/** A delivery opened: every try, and the body as it was POSTed while it is kept (30 days). */
+export interface WebhookDeliveryDetail extends WebhookDelivery {
+  tries: DeliveryAttempt[]
+  payload?: string
 }
 
 /**
@@ -258,9 +299,9 @@ export function waitWords(ms: number): string {
   return `${Math.round(ms / 60_000)} min`
 }
 
-/** An attempt's answer in a word or two: "200 OK", "503", "Timed out". */
-export function answerWords(attempt: DeliveryAttempt): string {
-  if (attempt.code === null) return attempt.error ?? 'No answer'
+/** An answer in a word or two: "200 OK", "503", "Timed out". */
+export function answerWords(attempt: { code: number | null, error?: string }): string {
+  if (attempt.code === null) return attempt.error || 'No answer'
   return HTTP_WORDS[attempt.code] ? `${attempt.code} ${HTTP_WORDS[attempt.code]}` : String(attempt.code)
 }
 
@@ -282,7 +323,7 @@ const HTTP_WORDS: Record<number, string> = {
   504: 'Gateway Timeout'
 }
 
-export const answerOk = (attempt: DeliveryAttempt) => attempt.code !== null && attempt.code >= 200 && attempt.code < 300
+export const answerOk = (attempt: { code: number | null }) => attempt.code !== null && attempt.code >= 200 && attempt.code < 300
 
 /** "82 ms", "1.4 s". */
 export function msWords(ms: number): string {
@@ -298,28 +339,87 @@ export const SIGNATURE_HEADERS = [
   { name: 'X-PlayerSense-Signature', note: 'v1= and the HMAC-SHA256 of the timestamp, a dot and the raw body, keyed with the signing secret.' }
 ] as const
 
-/** A delivery's request headers, as they are sent. */
+/**
+ * A try's request headers, as they were sent. The signature is not kept, so it is described
+ * rather than shown; a secret header of the studio's own is masked.
+ */
 export function requestHeaders(delivery: WebhookDelivery, destination: WebhookDestination, attempt: DeliveryAttempt) {
-  const seconds = Math.floor(attempt.at / 1000)
   return [
     { name: 'Content-Type', value: 'application/json' },
     { name: 'User-Agent', value: 'PlayerSense-Webhooks/1.0' },
     { name: 'X-PlayerSense-Id', value: delivery.eventId },
-    { name: 'X-PlayerSense-Timestamp', value: String(seconds) },
-    { name: 'X-PlayerSense-Signature', value: `v1=${fakeHex(`${destination.secret.value}${seconds}${delivery.eventId}`)}` },
+    { name: 'X-PlayerSense-Timestamp', value: String(Math.floor(attempt.at / 1000)) },
+    { name: 'X-PlayerSense-Signature', value: 'v1=<HMAC-SHA256 of the timestamp and body, one per secret signing>' },
     ...destination.headers.filter(header => header.name.trim()).map(header => ({ name: header.name, value: header.secret ? '••••••••' : header.value }))
   ]
 }
 
-/** A stand-in for the signature: 64 hex digits that are the same for the same input. */
-function fakeHex(text: string): string {
-  let out = ''
-  let state = 2166136261
-  for (let round = 0; out.length < 64; round++) {
-    for (const char of `${text}:${round}`) state = Math.imul(state ^ char.charCodeAt(0), 16777619) >>> 0
-    out += state.toString(16).padStart(8, '0')
+// --- What an event carries ------------------------------------------------------------------
+
+/**
+ * An example of an event's `data`: the shape the real event has, with values nobody will take
+ * for a real player. The same as a test send carries (internal/webhooks/sample.go).
+ */
+export function exampleData(type: string, environment: string, now = Date.now()): Record<string, unknown> {
+  const at = (offset: number) => new Date(Math.floor((now + offset) / 1000) * 1000).toISOString().replace('.000Z', 'Z')
+  const id = '5f0c2a9e-3b7d-4c1e-9a64-2d8e1f7b0c35'
+  const purchase: Record<string, unknown> = {
+    id,
+    status: 'verified',
+    duplicate: false,
+    player: { id: 'test_player' },
+    product: { id: 'gems_500', kind: 'consumable', quantity: 1 },
+    price: { amount_micros: 4_990_000, currency: 'USD', from_store: true },
+    store: { name: 'app_store', transaction_id: '2000000000000000' },
+    environment: 'sandbox',
+    country: 'US',
+    first_purchase: false,
+    purchased_at: at(-60_000)
   }
-  return out.slice(0, 64)
+  switch (type) {
+    case 'purchase.verified':
+      return { purchase }
+    case 'purchase.rejected': {
+      const { id: _, ...rest } = purchase
+      return { purchase: { ...rest, status: 'rejected', rejection: { code: 'invalid_receipt', message: 'the store knows no such purchase' } } }
+    }
+    case 'purchase.refunded':
+      return { purchase: { ...purchase, status: 'refunded', refund: { at: at(0), reason: 'customer_request', source: 'notification' } } }
+    case 'config.published':
+      return { environment, version: 42, published_by: 'test@example.com', changes: { flags: 2, experiments: 1, liveops_events: 1 }, note: 'A test publish' }
+    case 'config.rolled_back':
+      return { environment, from_version: 42, to_version: 41, rolled_back_by: 'test@example.com' }
+    case 'experiment.started':
+    case 'experiment.concluded':
+      return { experiment: { id, key: 'test_experiment', flag: 'shop_layout', arms: ['control', 'grid'], status: type === 'experiment.started' ? 'running' : 'concluded' } }
+    case 'export.completed':
+    case 'export.failed':
+      return { export: { id, player: { id: 'test_player' }, status: type === 'export.completed' ? 'completed' : 'failed' } }
+    case 'player.deleted':
+      return { player: { id: 'test_player' }, requested_at: at(-26 * 3_600_000), completed_at: at(0) }
+    case 'member.added':
+    case 'member.removed':
+      return { member: { email: 'test@example.com', role: 'developer' } }
+    case 'api_key.created':
+    case 'api_key.revoked':
+      return { key: { id, kind: 'project', environment, name: 'A test key', prefix: 'ps_project_live_test' } }
+    default:
+      return { test: true }
+  }
+}
+
+/** An example body, as it is POSTed: the envelope every event has, and its `data`. */
+export function exampleBody(type: string, environment: EnvironmentKind = 'production', projectId = '00000000-0000-0000-0000-000000000000'): string {
+  const event = WEBHOOK_EVENT[type]
+  const now = Date.now()
+  return JSON.stringify({
+    id: '8c1d4e7a-2f36-4b90-a5e1-7d3c9b2f6e04',
+    type,
+    api_version: WEBHOOK_API_VERSION,
+    created_at: new Date(now).toISOString(),
+    project: event?.environments ? { id: projectId, environment } : { id: projectId },
+    data: exampleData(type, environment, now)
+  }, null, 2)
 }
 
 // --- Verifying a delivery, in the studio's own server ---------------------------------------

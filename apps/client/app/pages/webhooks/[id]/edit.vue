@@ -3,10 +3,8 @@
 // filled from what is saved. Saving goes back to the destination.
 const route = useRoute()
 
-const { destinationById } = useWebhooks()
-
 const id = computed(() => String(route.params.id ?? ''))
-const destination = computed(() => destinationById(id.value))
+const { destination, loading, error, reload } = useWebhook(id)
 
 usePageCrumb(() => (destination.value ? `Edit ${destination.value.name}` : 'Edit destination'))
 
@@ -20,7 +18,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="!destination" class="flex flex-col gap-8">
+  <LoadState
+    v-if="loading || (error && error.status !== 404)"
+    :error="error"
+    :loading="loading"
+    what="the destination"
+    @retry="reload"
+  />
+
+  <div v-else-if="!destination" class="flex flex-col gap-8">
     <PageHeader title="Destination not found" />
     <LayerCard>
       <EmptyState description="There is no webhook destination with this id in the project." icon="material-symbols:webhook" title="No such destination">

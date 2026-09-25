@@ -5,59 +5,55 @@ import type { Kpi } from '~/components/KpiBoard.vue'
 // is not, and the day's figures), what was sent and what came back (the log, which is where most
 // visits end), what it listens to, how its server checks a delivery is ours (the secret and a
 // handler that verifies it), and who changed what.
-//
-// Sample data (app/utils/webhooks-sample.ts).
 const route = useRoute()
 
-const { destinationById, deliveriesOf, healthOfDestination, enable, disable, remove } = useWebhooks()
-
 const id = computed(() => String(route.params.id ?? ''))
-const destination = computed(() => destinationById(id.value))
+const { destination, loading, error, reload } = useWebhook(id)
+const { setEnabled, remove, resendFailed } = useWebhookActions()
+const { health: figures, loading: pending, reload: reloadHealth } = useWebhookHealth(() => (destination.value ? id.value : null))
 
 usePageCrumb(() => destination.value?.name ?? 'Destination')
 
 const now = useNow({ interval: 60_000 })
 const time = computed(() => now.value.getTime())
 
-const HOUR = 3_600_000
+const health = computed<WebhookHealth>(() => destination.value?.health ?? 'disabled')
 
-const health = computed(() => (destination.value ? healthOfDestination(destination.value, time.value) : 'disabled'))
-const deliveries = computed(() => (destination.value ? deliveriesOf(destination.value, time.value) : []))
+// --- The log --------------------------------------------------------------------------------
+
+const status = ref<'all' | DeliveryStatus>((DELIVERY_STATUSES as string[]).includes(String(route.query.status)) ? route.query.status as DeliveryStatus : 'all')
+const log = useWebhookDeliveries(() => (destination.value ? [id.value] : []), () => ({ status: status.value }))
+const deliveries = computed(() => log.deliveries.value)
+
+/* Something was sent or resent: the log, the day's figures and the destination move with it. */
+async function refresh() {
+  await Promise.all([log.reload(), reloadHealth(), reload()])
+}
 
 // --- The day's figures --------------------------------------------------------------------
 
-const { data: figures, pending } = useSampleQuery(
-  () => ({ id: id.value, at: Math.floor(time.value / HOUR), count: deliveries.value.length }),
-  () => ({
-    current: healthOf(deliveries.value, time.value - 24 * HOUR, time.value),
-    previous: healthOf(deliveries.value, time.value - 48 * HOUR, time.value - 24 * HOUR)
-  })
-)
-
 const board = computed<Kpi[]>(() => {
-  const { current, previous } = figures.value
+  const current = figures.value?.current ?? NO_DAY
+  const previous = figures.value?.previous ?? NO_DAY
   const move = (value: number, before: number, positive: 'up' | 'down' = 'up') => (before > 0 ? trendOf(value, before, positive) : undefined)
   return [
     { key: 'deliveries', label: 'Events sent', value: writeFigure(current.deliveries, { compact: true }), exact: writeFigure(current.deliveries), trend: move(current.deliveries, previous.deliveries), info: 'Events sent here, one each. A delivery tried three times counts once.' },
-    { key: 'first', label: 'Delivered first try', value: `${(current.firstTry * 100).toFixed(current.firstTry > 0.995 ? 2 : 1)}%`, trend: move(current.firstTry, previous.firstTry), info: 'Of the events sent, how many the server took on the first try.' },
-    { key: 'retrying', label: 'Retrying now', value: writeFigure(deliveries.value.filter(entry => entry.status === 'retrying').length), info: 'Not delivered yet, and due another try.' },
+    { key: 'first', label: 'Delivered first try', value: current.deliveries ? `${(current.firstTry * 100).toFixed(current.firstTry > 0.995 ? 2 : 1)}%` : '–', trend: move(current.firstTry, previous.firstTry), info: 'Of the events sent, how many the server took on the first try.' },
+    { key: 'retrying', label: 'Retrying now', value: writeFigure(figures.value?.retrying ?? destination.value?.retrying ?? 0), info: 'Not delivered yet, and due another try.' },
     { key: 'p50', label: 'Median answer', value: current.deliveries ? msWords(current.p50) : '–', trend: current.deliveries ? move(current.p50, previous.p50, 'down') : undefined, info: 'Half of the tries were answered faster than this.' },
     { key: 'p95', label: 'Slowest 5%', value: current.deliveries ? msWords(current.p95) : '–', trend: current.deliveries ? move(current.p95, previous.p95, 'down') : undefined, info: 'One try in twenty took at least this long. At 10 seconds a try times out.' }
   ]
 })
 
-const hourStarts = computed(() => {
-  const end = Math.floor(time.value / HOUR) * HOUR
-  return Array.from({ length: 24 }, (_, index) => end - (23 - index) * HOUR)
-})
-const categories = computed(() => hourStarts.value.map(at => new Date(at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })))
-const trySeries = computed<MetricSeries[]>(() => {
-  const { ok, bad } = attemptSeries(deliveries.value, hourStarts.value, HOUR)
-  return [
-    { name: 'Delivered', data: ok, stack: 'tries', tone: 3 },
-    { name: 'Failed', data: bad, stack: 'tries', tone: 2 }
-  ]
-})
+const hours = computed(() => figures.value?.hours ?? [])
+const categories = computed(() => hours.value.map(hour => new Date(hour.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })))
+const trySeries = computed<MetricSeries[]>(() => [
+  { name: 'Delivered', data: hours.value.map(hour => hour.ok), stack: 'tries', tone: 3 },
+  { name: 'Failed', data: hours.value.map(hour => hour.failed), stack: 'tries', tone: 2 }
+])
+
+/* Nothing sent in the day, nothing in the log: the next step, rather than figures of nothing. */
+const quiet = computed(() => !pending.value && !log.loading.value && !(figures.value?.current.deliveries) && !deliveries.value.length && status.value === 'all')
 
 // --- About it -----------------------------------------------------------------------------
 
@@ -69,9 +65,9 @@ const facts = computed<Fact[]>(() => {
   return [
     { key: 'url', label: 'Endpoint URL', value: entry.url, mono: true, copy: entry.url },
     { key: 'environments', label: 'From', value: entry.environments.map(value => ENVIRONMENT_LABELS[value]).join(', ') },
-    { key: 'version', label: 'Payload version', value: entry.version, mono: true, note: entry.version === LATEST_VERSION ? 'The latest' : `Latest is ${LATEST_VERSION}` },
+    { key: 'version', label: 'Payload version', value: entry.version, mono: true },
     { key: 'headers', label: 'Custom headers', value: entry.headers.length ? entry.headers.map(header => header.name).join(', ') : 'None', mono: entry.headers.length > 0 },
-    { key: 'created', label: 'Created', value: stamp(entry.created_at), note: `by ${entry.history[0]?.actor ?? entry.updated_by}` },
+    { key: 'created', label: 'Created', value: stamp(entry.created_at), note: `by ${entry.created_by}` },
     { key: 'id', label: 'Destination id', value: entry.id, mono: true, copy: entry.id }
   ]
 })
@@ -79,25 +75,16 @@ const facts = computed<Fact[]>(() => {
 // --- Tabs ---------------------------------------------------------------------------------
 
 const TABS = computed<PageTab[]>(() => [
-  { value: 'deliveries', label: 'Deliveries', count: writeFigure(deliveries.value.length, { compact: true }) },
+  { value: 'deliveries', label: 'Deliveries' },
   { value: 'events', label: 'Listening to', count: eventsOf(destination.value?.events ?? []).length },
   { value: 'signing', label: 'Signing' },
   { value: 'history', label: 'History', count: destination.value?.history.length ?? 0 }
 ])
 const tab = useQueryChoice('tab', ['deliveries', 'events', 'signing', 'history'], 'deliveries')
 
-const initialStatus = computed(() => (DELIVERY_STATUSES as string[]).includes(String(route.query.status)) ? route.query.status as DeliveryStatus : 'all')
-
 const listened = computed(() => {
   const types = eventsOf(destination.value?.events ?? [])
   return WEBHOOK_GROUPS.map(group => ({ group, events: WEBHOOK_EVENTS.filter(entry => entry.group === group.key && types.includes(entry.type)) })).filter(entry => entry.events.length)
-})
-
-/* How many of each event it was sent this week. */
-const sentCount = computed(() => {
-  const out = new Map<string, number>()
-  for (const entry of deliveries.value) out.set(entry.type, (out.get(entry.type) ?? 0) + 1)
-  return out
 })
 
 const previewing = ref<WebhookEventType | null>(null)
@@ -113,16 +100,53 @@ const previewOpen = computed({
 const testing = ref(false)
 const disabling = ref(false)
 const deleting = ref(false)
+const resendingFailed = ref(false)
+const busy = ref(false)
+const problem = ref('')
+const notice = ref('')
 
-function confirmDelete() {
-  if (!destination.value) return
-  remove(destination.value.id)
-  navigateTo('/webhooks')
+async function attempt(change: () => Promise<unknown>) {
+  busy.value = true
+  problem.value = ''
+  notice.value = ''
+  try {
+    await change()
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    busy.value = false
+  }
 }
+
+const turn = (enabled: boolean) => attempt(async () => {
+  await setEnabled(destination.value!, enabled)
+  await reload()
+})
+
+const confirmDelete = () => attempt(async () => {
+  await remove(destination.value!)
+  await navigateTo('/webhooks')
+})
+
+const confirmResendFailed = () => attempt(async () => {
+  const queued = await resendFailed(destination.value!)
+  notice.value = queued
+    ? `${queued} failed ${queued === 1 ? 'delivery is' : 'deliveries are'} queued to go again, now.`
+    : 'Nothing failed in the last three days, so nothing was queued.'
+  await refresh()
+})
 </script>
 
 <template>
-  <div v-if="!destination" class="flex flex-col gap-8">
+  <LoadState
+    v-if="loading || (error && error.status !== 404)"
+    :error="error"
+    :loading="loading"
+    what="the destination"
+    @retry="reload"
+  />
+
+  <div v-else-if="!destination" class="flex flex-col gap-8">
     <PageHeader title="Destination not found" />
     <LayerCard>
       <EmptyState description="There is no webhook destination with this id in the project. It may have been deleted." icon="material-symbols:webhook" title="No such destination">
@@ -181,7 +205,8 @@ function confirmDelete() {
           prepend-icon="material-symbols:play-arrow-outline"
           size="small"
           variant="flat"
-          @click="enable(destination.id)"
+          :loading="busy"
+          @click="turn(true)"
         >
           Enable
         </v-btn>
@@ -197,6 +222,12 @@ function confirmDelete() {
             />
           </template>
           <v-list density="compact" nav>
+            <v-list-item
+              :disabled="destination.status === 'disabled'"
+              prepend-icon="material-symbols:replay"
+              title="Resend failed deliveries"
+              @click="resendingFailed = true"
+            />
             <v-list-item
               v-if="destination.status === 'enabled'"
               prepend-icon="material-symbols:pause-outline"
@@ -214,6 +245,14 @@ function confirmDelete() {
       </template>
     </PageHeader>
 
+    <p v-if="problem" class="m-0 rounded-(--ps-radius) bg-error/6 px-3.5 py-3 text-xs text-error ring-1 ring-error/20 ring-inset">
+      {{ problem }}
+    </p>
+    <p v-else-if="notice" class="m-0 flex items-center gap-2 rounded-(--ps-radius) bg-ink/4 px-3.5 py-3 text-xs text-ink/75">
+      <Icon aria-hidden="true" class="flex-none text-sm text-primary" name="material-symbols:replay" />
+      {{ notice }}
+    </p>
+
     <!-- Failing: said first, with what happens next. -->
     <section v-if="health === 'failing'" class="flex flex-wrap items-start gap-4 rounded-(--ps-radius-x-large) bg-error/6 p-4 ring-1 ring-error/20 ring-inset">
       <span aria-hidden="true" class="flex size-9 flex-none items-center justify-center rounded-(--ps-radius) bg-error/12 text-lg text-error">
@@ -221,11 +260,17 @@ function confirmDelete() {
       </span>
       <div class="flex min-w-0 flex-1 basis-80 flex-col gap-0.5">
         <h2 class="m-0 text-sm font-medium text-ink">
-          Every try has failed for {{ relativeWords(failingSince(destination, time)!, time).replace(' ago', '') }}
+          {{ destination.failing_since ? `Every try has failed for ${relativeWords(Date.parse(destination.failing_since), time).replace(' ago', '')}` : 'Every try is failing' }}
         </h2>
         <p class="m-0 text-xs leading-5 text-ink/70">
-          The server answers <span class="font-mono">{{ deliveries[0]?.attempts.at(-1) ? answerWords(deliveries[0].attempts.at(-1)!) : 'nothing' }}</span>. Nothing is lost yet: every event is kept and retried.
-          Unless a try succeeds, the destination is turned off {{ relativeWords(autoDisableAt(destination, time)!, time) }} and its owners are emailed. Once the server is fixed, resend what is retrying so it does not wait for its next try.
+          <template v-if="deliveries[0]?.attempts">
+            The last answer was <span class="font-mono">{{ answerWords({ code: deliveries[0].lastCode, error: deliveries[0].lastError }) }}</span>.
+          </template>
+          Nothing is lost yet: {{ destination.retrying }} {{ destination.retrying === 1 ? 'event is' : 'events are' }} kept and retried.
+          <template v-if="destination.auto_disable_at">
+            Unless a try succeeds, the destination is turned off {{ relativeWords(Date.parse(destination.auto_disable_at), time) }}.
+          </template>
+          Once the server is fixed, resend the failed ones so they do not wait for their next try.
         </p>
       </div>
     </section>
@@ -233,14 +278,14 @@ function confirmDelete() {
     <section v-else-if="destination.status === 'disabled'" class="flex items-start gap-3 rounded-(--ps-radius-x-large) bg-ink/4 p-4 ring-1 ring-ink/8 ring-inset">
       <Icon aria-hidden="true" class="mt-0.5 flex-none text-base text-ink/50" name="material-symbols:pause-circle-outline" />
       <p class="m-0 text-xs leading-5 text-ink/70">
-        Disabled {{ destination.disabled_reason === 'failing' ? 'by PlayerSense after three days of nothing but failures' : 'by hand' }}. Nothing is sent to it, and events that happen meanwhile are not kept for it: enabling it sends what happens from then on.
+        Disabled {{ destination.disabled_reason === 'failing' ? 'by PlayerSense after three days of nothing but failures' : 'by hand' }}{{ destination.disabled_at ? ` ${relativeWords(Date.parse(destination.disabled_at), time)}` : '' }}. Nothing is sent to it, and events that happen meanwhile are not kept for it: enabling it sends what happens from then on.
       </p>
     </section>
 
     <FactGrid :columns="3" :facts="facts" label="About this destination" />
 
     <!-- Nothing sent yet: the next step, rather than figures of nothing. -->
-    <LayerCard v-if="!deliveries.length">
+    <LayerCard v-if="quiet">
       <EmptyState
         :description="destination.status === 'disabled' ? 'It is disabled, so nothing is sent to it.' : 'Events are sent here the moment one it listens to happens. Send a test event now to see your server answer, and check the signature on the Signing tab.'"
         icon="material-symbols:send-outline"
@@ -265,7 +310,7 @@ function confirmDelete() {
       <KpiBoard
         :items="board"
         :loading="pending"
-        description="The last 24 hours, against the 24 before."
+        description="The last 24 hours, to the hour, against the 24 before."
         title="Delivery"
       />
 
@@ -288,22 +333,28 @@ function confirmDelete() {
       <SectionCard
         v-if="tab === 'deliveries'"
         :padded="false"
-        description="Every event sent here in the last 7 days, newest first. Open one for its tries, the request and the answer; tick several to resend them together."
+        description="Every event sent here in the last 30 days, newest first. Open one for its tries, the request and the answer; tick several to resend them together."
         title="Deliveries"
       >
+        <p v-if="log.error.value" class="m-0 border-b border-line px-5 py-3 text-xs text-error">
+          {{ log.error.value.message }}
+        </p>
         <DeliveryTable
-          :key="destination.id + initialStatus"
+          v-model:status="status"
           :deliveries="deliveries"
           :destinations="[destination]"
-          :initial-status="initialStatus"
-          :loading="pending"
+          :has-more="log.hasMore.value"
+          :loading="log.loading.value"
+          :loading-more="log.loadingMore.value"
+          @changed="refresh"
+          @more="log.loadMore"
         />
       </SectionCard>
 
       <SectionCard
         v-else-if="tab === 'events'"
         :padded="false"
-        :description="destination.events.includes(EVERY_EVENT) ? 'Every event, and new ones as they are added.' : 'The events sent here, in their groups, with how many went out this week.'"
+        :description="destination.events.includes(EVERY_EVENT) ? 'Every event, and new ones as they are added.' : 'The events sent here, in their groups.'"
         title="Listening to"
       >
         <template #actions>
@@ -329,7 +380,7 @@ function confirmDelete() {
             <li v-for="entry in events" :key="entry.type" class="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-line/60 px-5 py-2.5">
               <span class="truncate font-mono text-xs text-ink">{{ entry.type }}</span>
               <span class="text-xs text-ink/65">{{ entry.summary }}</span>
-              <span class="text-right font-mono text-[11px] whitespace-nowrap text-ink/50">{{ writeFigure(sentCount.get(entry.type) ?? 0, { compact: true }) }} this week</span>
+              <span class="text-right text-[11px] whitespace-nowrap text-ink/50">{{ entry.emitted ? '' : 'Not sent yet' }}</span>
               <v-btn
                 :aria-label="`See the ${entry.type} payload`"
                 class="text-[11px]"
@@ -347,7 +398,7 @@ function confirmDelete() {
       </SectionCard>
 
       <SectionCard v-else-if="tab === 'signing'" description="How your server knows a delivery came from PlayerSense and not from somebody who found the URL." title="Signing">
-        <WebhookSigning :destination="destination" />
+        <WebhookSigning :destination="destination" @changed="reload" />
       </SectionCard>
 
       <SectionCard
@@ -357,7 +408,10 @@ function confirmDelete() {
         title="History"
       >
         <ol class="m-0 flex list-none flex-col p-0">
-          <li v-for="(entry, index) in [...destination.history].reverse()" :key="index" class="flex items-start gap-3 border-t border-line/70 px-5 py-3 first:border-t-0">
+          <li v-if="!destination.history.length" class="px-5 py-4 text-xs text-ink/50">
+            No change recorded yet.
+          </li>
+          <li v-for="(entry, index) in destination.history" :key="index" class="flex items-start gap-3 border-t border-line/70 px-5 py-3 first:border-t-0">
             <span aria-hidden="true" class="mt-1.5 size-1.5 flex-none rounded-full bg-ink/30" />
             <span class="flex min-w-0 flex-1 flex-col gap-0.5">
               <span class="text-xs text-ink">{{ entry.text }}</span>
@@ -368,13 +422,26 @@ function confirmDelete() {
       </SectionCard>
     </div>
 
-    <TestEventDialog v-if="testing" v-model="testing" :destination="destination" />
+    <TestEventDialog
+      v-if="testing"
+      v-model="testing"
+      :destination="destination"
+      @sent="refresh"
+    />
 
     <WebhookEventDialog
       v-if="previewing"
       v-model="previewOpen"
       :event-type="previewing"
-      :version="destination.version"
+    />
+
+    <ConfirmDialog
+      v-if="resendingFailed"
+      v-model="resendingFailed"
+      :description="`Every delivery to ${destination.name} that gave up in the last three days goes again now, with the same event id, so a server that keeps the ids it has handled sees a repeat. Test events are left out.`"
+      action="Resend failed"
+      title="Resend what failed?"
+      @confirm="confirmResendFailed"
     />
 
     <ConfirmDialog
@@ -383,7 +450,7 @@ function confirmDelete() {
       :description="`Nothing is sent to ${destination.name} while it is disabled, and events that happen meanwhile are not kept for it. Deliveries retrying now stop.`"
       action="Disable"
       title="Disable this destination?"
-      @confirm="disable(destination.id)"
+      @confirm="turn(false)"
     />
 
     <ConfirmDialog

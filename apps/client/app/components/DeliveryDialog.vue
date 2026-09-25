@@ -1,25 +1,46 @@
 <script setup lang="ts">
 // One delivery, the way somebody debugging their server reads it: did it arrive, every try
-// with what the server answered and how fast, and for the try chosen, the request exactly as
-// it was sent and the response as it came back. Resend makes one more try now, with the same
-// event id, so a server that keeps the ids it has handled sees a repeat and not a new event.
+// with what the server answered and how fast, and for the try chosen, the request as it was
+// sent and the response as it came back. Resend makes one more try now, with the same event
+// id, so a server that keeps the ids it has handled sees a repeat and not a new event.
 const props = defineProps<{
   delivery: WebhookDelivery
   destination: WebhookDestination
 }>()
 
 const open = defineModel<boolean>({ required: true })
+const emit = defineEmits<{ changed: [] }>()
 
-const { resend } = useWebhooks()
+const { resend } = useWebhookActions()
 
 const now = useNow({ interval: 30_000 })
 
+/* The tries and the body, read when the dialog opens and again after a resend. */
+const detail = ref<WebhookDeliveryDetail | null>(null)
+const loading = ref(true)
+const problem = ref('')
+
+async function load() {
+  problem.value = ''
+  try {
+    detail.value = await readDelivery(props.destination.id, props.delivery.id)
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(load)
+
+const shown = computed<WebhookDelivery>(() => detail.value ?? props.delivery)
+const tries = computed(() => detail.value?.tries ?? [])
+
 /* The try being read: the last one, until another is chosen. */
-const chosen = ref(props.delivery.attempts.length - 1)
-watch(() => props.delivery.attempts.length, (count) => {
-  chosen.value = count - 1
-})
-const attempt = computed(() => props.delivery.attempts[chosen.value] ?? null)
+const chosen = ref(0)
+watch(() => tries.value.length, (count) => {
+  chosen.value = Math.max(0, count - 1)
+}, { immediate: true })
+const attempt = computed(() => tries.value[chosen.value] ?? null)
 
 const TABS: PageTab[] = [
   { value: 'request', label: 'Request' },
@@ -29,14 +50,17 @@ const tab = ref('response')
 
 const when = (at: number) => new Date(at).toLocaleString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
-const body = computed(() => JSON.stringify(eventDocument(props.delivery.type, {
-  id: props.delivery.eventId,
-  created: props.delivery.created,
-  environment: props.delivery.environment,
-  version: props.destination.version
-}), null, 2))
+const body = computed(() => {
+  const text = detail.value?.payload
+  if (!text) return ''
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2)
+  } catch {
+    return text
+  }
+})
 
-const headers = computed(() => (attempt.value ? requestHeaders(props.delivery, props.destination, attempt.value) : []))
+const headers = computed(() => (attempt.value ? requestHeaders(shown.value, props.destination, attempt.value) : []))
 
 /* A JSON answer is shown as JSON; anything else, an nginx page say, as the text it was. */
 const response = computed(() => {
@@ -50,11 +74,11 @@ const response = computed(() => {
 
 /* Where the delivery stands, in a sentence. */
 const standing = computed(() => {
-  const entry = props.delivery
-  const count = entry.attempts.length
-  const last = entry.attempts.at(-1)
-  if (entry.status === 'succeeded' && last) return `Delivered on try ${count}, answered in ${msWords(last.ms)}.`
-  if (entry.status === 'failed') return `Gave up after ${count} tries over three days. Resend it once your server is fixed.`
+  const entry = shown.value
+  const count = entry.attempts
+  const last = tries.value.at(-1)
+  if (entry.status === 'succeeded') return `Delivered on try ${count}${last ? `, answered in ${msWords(last.ms)}` : ''}.`
+  if (entry.status === 'failed') return `Gave up after ${count} ${count === 1 ? 'try' : 'tries'}. Resend it once your server is fixed.`
   if (!count) return 'Waiting for its first try.'
   return `Try ${count} of ${WEBHOOK_TRIES} failed. The next is ${entry.next ? relativeWords(entry.next, now.value.getTime()) : 'soon'}${entry.next ? `, at ${new Date(entry.next).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}.`
 })
@@ -64,9 +88,16 @@ const lastResend = ref<DeliveryAttempt | null>(null)
 
 async function resendNow() {
   resending.value = true
-  await new Promise(resolve => setTimeout(resolve, 600))
-  lastResend.value = resend(props.destination, props.delivery)
-  resending.value = false
+  problem.value = ''
+  try {
+    lastResend.value = await resend(props.destination.id, props.delivery.id)
+    await load()
+    emit('changed')
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    resending.value = false
+  }
 }
 
 const disabled = computed(() => props.destination.status === 'disabled')
@@ -79,16 +110,16 @@ const disabled = computed(() => props.destination.status === 'disabled')
         <div class="flex min-w-0 flex-col gap-1">
           <span class="flex flex-wrap items-center gap-2">
             <h2 class="m-0 truncate font-mono text-sm font-medium text-ink">
-              {{ delivery.type }}
+              {{ shown.type }}
             </h2>
-            <StatusBadge :label="DELIVERY_STATUS[delivery.status].label" :tone="DELIVERY_STATUS[delivery.status].tone" />
-            <span v-if="delivery.test" class="rounded-full bg-ink/6 px-1.5 text-[10px] leading-4 font-medium text-ink/60">Test</span>
+            <StatusBadge :label="DELIVERY_STATUS[shown.status].label" :tone="DELIVERY_STATUS[shown.status].tone" />
+            <span v-if="shown.test" class="rounded-full bg-ink/6 px-1.5 text-[10px] leading-4 font-medium text-ink/60">Test</span>
           </span>
           <span class="text-xs text-ink/60">{{ standing }}</span>
         </div>
         <div class="flex flex-none flex-col items-end gap-0.5 text-right">
           <span class="text-xs text-ink">{{ when(delivery.created) }}</span>
-          <span class="text-[11px] text-ink/45">{{ ENVIRONMENT_LABELS[delivery.environment] }} · to {{ destination.name }}</span>
+          <span class="text-[11px] text-ink/45">{{ delivery.environment ? ENVIRONMENT_LABELS[delivery.environment] : 'The project' }} · to {{ destination.name }}</span>
         </div>
       </header>
 
@@ -103,11 +134,20 @@ const disabled = computed(() => props.destination.status === 'disabled')
             label="Identifiers"
           />
 
+          <div v-if="loading" class="flex justify-center py-6">
+            <v-progress-circular
+              color="primary"
+              indeterminate
+              size="24"
+              width="3"
+            />
+          </div>
+
           <!-- Every try: choose one to read its request and response. -->
-          <div class="flex flex-col gap-2">
+          <div v-else-if="tries.length" class="flex flex-col gap-2">
             <span class="text-xs font-medium text-ink">Tries</span>
             <ol class="m-0 flex list-none flex-col overflow-hidden rounded-(--ps-radius-large) border border-line p-0">
-              <li v-for="(entry, index) in delivery.attempts" :key="index" class="border-b border-line/70 last:border-b-0">
+              <li v-for="(entry, index) in tries" :key="index" class="border-b border-line/70 last:border-b-0">
                 <button
                   :aria-pressed="chosen === index"
                   :class="chosen === index ? 'bg-primary/5' : 'hover:bg-ink/2'"
@@ -123,19 +163,23 @@ const disabled = computed(() => props.destination.status === 'disabled')
                   />
                   <span class="flex min-w-0 items-baseline gap-2">
                     <span :class="answerOk(entry) ? 'text-ink' : 'text-error'" class="font-mono text-xs">{{ answerWords(entry) }}</span>
-                    <span class="truncate text-[11px] text-ink/45">Try {{ index + 1 }}{{ entry.manual ? ', resent by hand' : '' }}</span>
+                    <span class="truncate text-[11px] text-ink/45">Try {{ entry.number }}{{ entry.manual ? ', resent by hand' : '' }}</span>
                   </span>
                   <span class="font-mono text-[11px] text-ink/55">{{ msWords(entry.ms) }}</span>
                   <span class="w-32 text-right text-[11px] text-ink/55">{{ when(entry.at) }}</span>
                 </button>
               </li>
-              <li v-if="delivery.status === 'retrying' && delivery.next" class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 bg-ink/2 px-3 py-2">
+              <li v-if="shown.status === 'retrying' && shown.next" class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 bg-ink/2 px-3 py-2">
                 <Icon aria-hidden="true" class="text-base text-warning" name="material-symbols:schedule-outline" />
-                <span class="text-[11px] text-ink/60">Try {{ delivery.attempts.length + 1 }}, on the schedule</span>
-                <span class="w-32 text-right text-[11px] text-ink/55">{{ when(delivery.next) }}</span>
+                <span class="text-[11px] text-ink/60">Try {{ shown.attempts + 1 }}, on the schedule</span>
+                <span class="w-32 text-right text-[11px] text-ink/55">{{ when(shown.next) }}</span>
               </li>
             </ol>
           </div>
+
+          <p v-if="problem" class="m-0 text-xs text-error">
+            {{ problem }}
+          </p>
 
           <div v-if="attempt" class="flex flex-col gap-3">
             <PageTabs v-model="tab" :tabs="TABS" label="Try details" />
@@ -159,7 +203,10 @@ const disabled = computed(() => props.destination.status === 'disabled')
                   </tbody>
                 </table>
               </div>
-              <CodeBlock :code="body" title="Body" />
+              <CodeBlock v-if="body" :code="body" title="Body" />
+              <p v-else class="m-0 rounded-(--ps-radius-large) border border-dashed border-line px-4 py-6 text-center text-xs text-ink/50">
+                The body is kept for 30 days, and this one has aged out.
+              </p>
             </template>
 
             <template v-else>

@@ -1,21 +1,13 @@
 <script setup lang="ts">
-// One event type, the way a developer meets it: what happened, what `data` holds, when it is
-// sent from test builds too, and the body exactly as it will be POSTed, in the payload version
-// the destination is on.
+// One event type, the way a developer meets it: what happened, what `data` holds, whether it
+// belongs to an environment, and an example body in the envelope every event is POSTed in.
 const props = defineProps<{
   eventType: WebhookEventType
-  version: string
 }>()
 
 const open = defineModel<boolean>({ required: true })
 
-const code = computed(() => JSON.stringify(eventDocument(props.eventType.type, {
-  id: 'evt_7kq2m9x4r8t3zb5n6p1w',
-  created: Date.parse('2026-09-24T14:03:11Z'),
-  environment: 'production',
-  version: props.version,
-  seed: props.eventType.type
-}), null, 2))
+const code = computed(() => exampleBody(props.eventType.type))
 
 const group = computed(() => WEBHOOK_GROUP[props.eventType.group])
 </script>
@@ -33,6 +25,7 @@ const group = computed(() => WEBHOOK_GROUP[props.eventType.group])
               {{ eventType.type }}
             </h2>
             <CopyButton :value="eventType.type" label="Copy the event type" />
+            <span v-if="!eventType.emitted" class="rounded-full bg-ink/6 px-1.5 text-[10px] leading-4 font-medium text-ink/60">Not sent yet</span>
           </span>
           <span class="text-xs text-ink/60">{{ eventType.summary }}</span>
         </div>
@@ -59,14 +52,22 @@ const group = computed(() => WEBHOOK_GROUP[props.eventType.group])
             </div>
             <div class="flex flex-col gap-0.5 sm:col-span-3">
               <dt class="text-[11px] text-ink/45">
-                From test builds
+                Environments
               </dt>
               <dd class="m-0 text-xs text-ink">
-                {{ eventType.environments ? 'Yes, to a destination that hears staging or development. project.environment says which.' : 'No: it happens in the project, not in a build. Always production.' }}
+                {{ eventType.environments ? 'Belongs to one. A destination hears it only from the environments it listens to, and project.environment says which.' : 'Belongs to the project, not an environment: every destination listening to it hears it, and project.environment is absent.' }}
+              </dd>
+            </div>
+            <div v-if="!eventType.emitted" class="flex flex-col gap-0.5 sm:col-span-3">
+              <dt class="text-[11px] text-ink/45">
+                Not sent yet
+              </dt>
+              <dd class="m-0 text-xs text-ink">
+                PlayerSense does not send it yet. A destination can listen to it now and hears it once it does.
               </dd>
             </div>
           </dl>
-          <CodeBlock :code="code" :title="`${eventType.type} · version ${version}`" />
+          <CodeBlock :code="code" :title="`An example ${eventType.type} · version ${WEBHOOK_API_VERSION}`" />
         </div>
       </div>
 

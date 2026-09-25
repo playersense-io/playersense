@@ -6,9 +6,7 @@
 // "Every event" is its own choice rather than every box ticked: it takes the events added
 // later too, which ticking today's boxes does not, and a destination listening to everything
 // is a choice somebody should make on purpose.
-const props = defineProps<{
-  /** The payload version the previews are written in. */
-  version: string
+defineProps<{
   error?: boolean
 }>()
 
@@ -176,7 +174,10 @@ const BOX = {
                   <Icon v-if="chosen.has(entry.type)" class="text-[11px]" name="material-symbols:check" />
                 </span>
                 <span class="flex min-w-0 flex-col gap-0.5">
-                  <span class="font-mono text-xs text-ink">{{ entry.type }}</span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="font-mono text-xs text-ink">{{ entry.type }}</span>
+                    <span v-if="!entry.emitted" class="rounded-full bg-ink/6 px-1.5 text-[10px] leading-4 text-ink/55">Not sent yet</span>
+                  </span>
                   <span class="text-[11px] leading-4 text-ink/55">{{ entry.summary }}</span>
                 </span>
               </button>
@@ -205,7 +206,6 @@ const BOX = {
       v-if="previewing"
       v-model="previewOpen"
       :event-type="previewing"
-      :version="props.version"
     />
   </div>
 </template>

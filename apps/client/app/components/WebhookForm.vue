@@ -23,7 +23,6 @@ const name = ref(base?.name ?? '')
 const description = ref(base?.description ?? '')
 const events = ref<string[]>(base ? [...base.events] : [])
 const environments = ref<string[]>(base ? [...base.environments] : ['production'])
-const version = ref(base?.version ?? LATEST_VERSION)
 const headers = ref<WebhookHeader[]>(base ? base.headers.map(header => ({ ...header })) : [])
 
 const urlTouched = ref(editing.value)
@@ -60,13 +59,10 @@ const exampleType = computed({
     pickedExample.value = value
   }
 })
-const example = computed(() => JSON.stringify(eventDocument(exampleType.value, {
-  id: 'evt_7kq2m9x4r8t3zb5n6p1w',
-  created: Date.parse('2026-09-24T14:03:11Z'),
-  environment: 'production',
-  version: version.value,
-  seed: exampleType.value
-}), null, 2))
+const example = computed(() => exampleBody(exampleType.value, (environments.value[0] ?? 'production') as EnvironmentKind))
+
+/* A secret header saved before: its value is not read back, and left blank it keeps what it has. */
+const savedSecret = (name: string) => Boolean(base?.headers.some(header => header.secret && header.name.toLowerCase() === name.trim().toLowerCase()))
 
 function addHeader() {
   headers.value = [...headers.value, { name: '', value: '', secret: false }]
@@ -86,6 +82,7 @@ const headerProblem = computed(() => {
     if (!key) return 'A header with a value and no name'
     if (!/^[A-Za-z0-9-]+$/.test(header.name.trim())) return `"${header.name}" is not a header name: letters, digits and dashes`
     if (RESERVED.includes(key)) return `${header.name} is set by PlayerSense`
+    if (header.secret && !header.value && !savedSecret(header.name)) return `The secret header ${header.name} needs a value`
   }
   const names = headers.value.map(header => header.name.trim().toLowerCase()).filter(Boolean)
   if (new Set(names).size !== names.length) return 'The same header twice'
@@ -102,6 +99,7 @@ const missing = computed(() => {
   if (name.value.trim().length < 2) out.push({ section: 'where', text: 'A name of two characters or more' })
   if (!events.value.length) out.push({ section: 'what', text: 'At least one event to send' })
   if (!environments.value.length) out.push({ section: 'whose', text: 'At least one environment' })
+  if (headers.value.filter(header => header.name.trim()).length > 10) out.push({ section: 'how', text: 'Up to ten custom headers' })
   if (headerProblem.value) out.push({ section: 'how', text: headerProblem.value })
   return out
 })
@@ -115,28 +113,38 @@ function draft(): WebhookDraft {
     url: url.value.trim(),
     events: events.value.includes(EVERY_EVENT) ? [EVERY_EVENT] : WEBHOOK_EVENTS.map(entry => entry.type).filter(type => events.value.includes(type)),
     environments: ENVIRONMENTS.filter(value => environments.value.includes(value)).reverse(),
-    version: version.value,
     headers: headers.value.filter(header => header.name.trim()).map(header => ({ name: header.name.trim(), value: header.value, secret: Boolean(header.secret) }))
   }
 }
 
-function save() {
+const saving = ref(false)
+const problem = ref('')
+
+async function save() {
   urlTouched.value = true
-  if (!ready.value) return
-  let id: string
-  if (props.destination) {
-    update(props.destination.id, draft())
-    id = props.destination.id
-  } else {
-    id = create(draft())
+  if (!ready.value || saving.value) return
+  saving.value = true
+  problem.value = ''
+  try {
+    let id: string
+    if (props.destination) {
+      await update(props.destination, draft())
+      id = props.destination.id
+    } else {
+      id = await create(draft())
+    }
+    saved.value = true
+    emit('saved', id)
+  } catch (caught) {
+    problem.value = caught instanceof Error ? caught.message : String(caught)
+  } finally {
+    saving.value = false
   }
-  saved.value = true
-  emit('saved', id)
 }
 
 // --- Changes, and leaving with them -------------------------------------------------------
 
-const snapshot = () => JSON.stringify([url.value, name.value, description.value, events.value, environments.value, version.value, headers.value])
+const snapshot = () => JSON.stringify([url.value, name.value, description.value, events.value, environments.value, headers.value])
 const initial = snapshot()
 const dirty = computed(() => snapshot() !== initial)
 const saved = ref(false)
@@ -264,7 +272,7 @@ const SECTIONS = [
             What happens in the project, not every event a player sends: those stay in Analytics, and Report Builder hands them over in bulk.
           </p>
         </div>
-        <WebhookEventPicker v-model="events" :version="version" />
+        <WebhookEventPicker v-model="events" />
       </section>
 
       <!-- 3. Whose. -->
@@ -292,43 +300,12 @@ const SECTIONS = [
           {{ SECTIONS[3]!.title }}
         </h2>
 
-        <!-- The version: cards, the chosen one's payload under them. -->
-        <div class="flex flex-col gap-2">
-          <span class="flex flex-col gap-0.5">
-            <span class="text-xs font-medium text-ink">Payload version</span>
-            <span class="text-[11px] text-ink/50">The shape of every body sent here. It stays fixed until you move it on, so a new field never breaks your handler.</span>
-          </span>
-          <div class="grid gap-1.5 sm:grid-cols-3" role="radiogroup" aria-label="Payload version">
-            <button
-              v-for="(entry, index) in WEBHOOK_VERSIONS"
-              :key="entry.value"
-              :aria-checked="version === entry.value"
-              :class="version === entry.value ? 'border-primary bg-primary/6' : 'border-line bg-surface hover:bg-ink/3'"
-              class="flex cursor-pointer items-start gap-2.5 rounded-(--ps-radius-small) border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              role="radio"
-              type="button"
-              @click="version = entry.value"
-            >
-              <span :class="version === entry.value ? 'border-primary' : 'border-ink/25'" aria-hidden="true" class="mt-0.5 flex size-3.5 flex-none items-center justify-center rounded-full border-2">
-                <span v-if="version === entry.value" class="size-1.5 rounded-full bg-primary" />
-              </span>
-              <span class="flex min-w-0 flex-col gap-0.5">
-                <span class="flex items-center gap-1.5">
-                  <span class="font-mono text-xs font-medium text-ink">{{ entry.value }}</span>
-                  <span v-if="index === 0" class="rounded-full bg-primary/10 px-1.5 text-[10px] leading-4 font-medium text-primary">Latest</span>
-                </span>
-                <span class="text-[11px] leading-4 text-ink/55">{{ entry.note.replace(/^Latest\. /, '') }}</span>
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <!-- What the server receives, for one of the events chosen, in the version chosen. -->
+        <!-- What the server receives, for one of the events chosen. -->
         <div class="flex flex-col gap-2">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span class="flex flex-col gap-0.5">
               <span class="text-xs font-medium text-ink">What your server receives</span>
-              <span class="text-[11px] text-ink/50">An example body, {{ events.length ? 'for an event you chose' : 'for any event' }}. Every body has the same envelope; data is the event's own.</span>
+              <span class="text-[11px] text-ink/50">An example body, {{ events.length ? 'for an event you chose' : 'for any event' }}. Every body has the same envelope; data is the event's own, and a test event carries exactly this.</span>
             </span>
             <GhostSelect
               v-model="exampleType"
@@ -337,14 +314,14 @@ const SECTIONS = [
               size="small"
             />
           </div>
-          <CodeBlock :code="example" :title="`${exampleType} · version ${version}`" class="max-h-96" />
+          <CodeBlock :code="example" :title="`${exampleType} · version ${WEBHOOK_API_VERSION}`" class="max-h-96" />
         </div>
 
         <!-- Headers of the studio's own, for a gateway in front of the URL. -->
         <div class="flex flex-col gap-2">
           <span class="flex flex-col gap-0.5">
             <span class="text-xs font-medium text-ink">Custom headers <span class="font-normal text-ink/45">optional</span></span>
-            <span class="text-[11px] text-ink/50">Sent with every delivery, for a gateway or firewall in front of your server that wants a token of its own. A secret one is stored encrypted and never shown again.</span>
+            <span class="text-[11px] text-ink/50">Up to ten, sent with every delivery, for a gateway or firewall in front of your server that wants a token of its own. A secret one is stored encrypted and never shown again.</span>
           </span>
           <ul v-if="headers.length" class="m-0 flex list-none flex-col gap-2 p-0">
             <li v-for="(header, index) in headers" :key="index" class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto_auto] items-center gap-2">
@@ -362,12 +339,12 @@ const SECTIONS = [
               <v-text-field
                 v-model="header.value"
                 :aria-label="`Header ${index + 1} value`"
+                :placeholder="header.secret && savedSecret(header.name) ? 'Set. Leave blank to keep it' : 'Value'"
                 :type="header.secret ? 'password' : 'text'"
                 autocomplete="off"
                 class="font-mono"
                 density="comfortable"
                 hide-details
-                placeholder="Value"
                 spellcheck="false"
                 variant="outlined"
               />
@@ -461,7 +438,7 @@ const SECTIONS = [
               Sent as
             </dt>
             <dd class="m-0 text-xs leading-5 text-ink">
-              Version <span class="font-mono">{{ version }}</span>
+              Version <span class="font-mono">{{ WEBHOOK_API_VERSION }}</span>
             </dd>
             <dd class="m-0 text-[11px] text-ink/50">
               {{ headers.filter(header => header.name.trim()).length ? `${headers.filter(header => header.name.trim()).length} custom ${headers.filter(header => header.name.trim()).length === 1 ? 'header' : 'headers'}` : 'No custom headers' }}
@@ -482,11 +459,15 @@ const SECTIONS = [
             <Icon aria-hidden="true" class="flex-none text-sm" name="material-symbols:check-circle-outline" />
             Ready to {{ editing ? 'save' : 'add' }}
           </p>
+          <p v-if="problem" class="m-0 mt-2 text-xs text-error">
+            {{ problem }}
+          </p>
         </div>
 
         <footer class="flex flex-col gap-2 border-t border-line p-4">
           <v-btn
             :disabled="!ready || (editing && !dirty)"
+            :loading="saving"
             block
             class="text-xs font-medium"
             color="primary"

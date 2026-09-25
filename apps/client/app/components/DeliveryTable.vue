@@ -1,22 +1,28 @@
 <script setup lang="ts">
-// The deliveries log: every event sent, newest first, with where it stands, what the server
-// last answered and how many tries it took. Narrowed by status in one click, since "what
-// failed" is why most people open it, and by event, destination and environment under Filter.
-// A row opens the delivery; ticking rows resends them together, for the morning after an
-// outage.
+// The deliveries log: events sent, newest first, with where each stands, what the server last
+// answered and how many tries it took. Narrowed by status in one click, since "what failed" is
+// why most people open it; the status is asked of the API, the rest narrows what was read. A
+// row opens the delivery; ticking rows resends them together, for the morning after an outage.
 const props = withDefaults(defineProps<{
   deliveries: readonly WebhookDelivery[]
   /** Every destination the deliveries go to. With more than one, the table says which. */
   destinations: readonly WebhookDestination[]
   loading?: boolean
-  /** The status the log opens on: "retrying", from a warning that links here. */
-  initialStatus?: 'all' | DeliveryStatus
+  /** Older deliveries can be read. */
+  hasMore?: boolean
+  loadingMore?: boolean
 }>(), {
   loading: false,
-  initialStatus: 'all'
+  hasMore: false,
+  loadingMore: false
 })
 
-const { resend } = useWebhooks()
+/** The status the log is narrowed to, read by the page's query. */
+const status = defineModel<'all' | DeliveryStatus>('status', { default: 'all' })
+
+const emit = defineEmits<{ more: [], changed: [] }>()
+
+const { resend } = useWebhookActions()
 
 const now = useNow({ interval: 60_000 })
 const time = computed(() => now.value.getTime())
@@ -26,23 +32,15 @@ const several = computed(() => props.destinations.length > 1)
 
 // --- Narrowing ----------------------------------------------------------------------------
 
-const status = ref<'all' | DeliveryStatus>(props.initialStatus)
 const query = ref('')
 const filters = ref<Record<string, string[]>>({ type: [], destination: [], environment: [] })
 
-const counts = computed(() => ({
-  all: props.deliveries.length,
-  succeeded: props.deliveries.filter(entry => entry.status === 'succeeded').length,
-  retrying: props.deliveries.filter(entry => entry.status === 'retrying').length,
-  failed: props.deliveries.filter(entry => entry.status === 'failed').length
-}))
-
-const STATUS_OPTIONS = computed<SegmentedOption[]>(() => [
-  { value: 'all', label: `All ${writeFigure(counts.value.all, { compact: true })}` },
-  { value: 'succeeded', label: `Delivered ${writeFigure(counts.value.succeeded, { compact: true })}` },
-  { value: 'retrying', label: `Retrying ${counts.value.retrying}` },
-  { value: 'failed', label: `Failed ${counts.value.failed}` }
-])
+const STATUS_OPTIONS: SegmentedOption[] = [
+  { value: 'all', label: 'All' },
+  { value: 'succeeded', label: 'Delivered' },
+  { value: 'retrying', label: 'Retrying' },
+  { value: 'failed', label: 'Failed' }
+]
 
 const statusModel = computed({
   get: () => status.value as string,
@@ -81,10 +79,9 @@ function clearFilters() {
 const shown = computed(() => {
   const needle = query.value.trim().toLowerCase()
   const { type = [], destination = [], environment = [] } = filters.value
-  return props.deliveries.filter(entry => (status.value === 'all' || entry.status === status.value)
-    && (!type.length || type.includes(entry.type))
+  return props.deliveries.filter(entry => (!type.length || type.includes(entry.type))
     && (!destination.length || destination.includes(entry.destinationId))
-    && (!environment.length || environment.includes(entry.environment))
+    && (!environment.length || (entry.environment !== undefined && environment.includes(entry.environment)))
     && (!needle || entry.eventId.toLowerCase().includes(needle) || entry.id.toLowerCase().includes(needle) || entry.type.includes(needle)))
 })
 
@@ -94,9 +91,9 @@ const COLUMNS = computed<DataTableColumn<WebhookDelivery>[]>(() => [
   { key: 'type', title: 'Event', fixed: true, minWidth: 240, skeleton: 'identity' },
   { key: 'status', title: 'Status', value: entry => DELIVERY_STATUSES.indexOf(entry.status), skeleton: 'pill' },
   ...(several.value ? [{ key: 'destination', title: 'Destination', minWidth: 180, value: (entry: WebhookDelivery) => byId.value.get(entry.destinationId)?.name ?? '' }] : []),
-  { key: 'answer', title: 'Last answer', value: entry => entry.attempts.at(-1)?.code ?? 0 },
-  { key: 'attempts', title: 'Tries', align: 'end', value: entry => entry.attempts.length },
-  { key: 'environment', title: 'Environment', value: entry => ENVIRONMENT_LABELS[entry.environment], hidden: !several.value },
+  { key: 'answer', title: 'Last answer', value: entry => entry.lastCode ?? 0 },
+  { key: 'attempts', title: 'Tries', align: 'end', value: entry => entry.attempts },
+  { key: 'environment', title: 'Environment', value: entry => (entry.environment ? ENVIRONMENT_LABELS[entry.environment] : ''), hidden: !several.value },
   { key: 'created', title: 'Created', align: 'end', value: entry => entry.created },
   { key: 'eventId', title: 'Event id', mono: true, hidden: true }
 ])
@@ -123,16 +120,26 @@ const openModel = computed({
 
 const selectedDeliveries = computed(() => props.deliveries.filter(entry => selected.value.includes(entry.id)))
 const resendable = computed(() => selectedDeliveries.value.filter(entry => byId.value.get(entry.destinationId)?.status === 'enabled'))
-const resent = ref<{ total: number, ok: number } | null>(null)
+const resent = ref<{ total: number, ok: number, refused: string } | null>(null)
+const resending = ref(false)
 
-function resendSelected() {
+/* One at a time: each is a try made now, and a server just back up should not get them all at once. */
+async function resendSelected() {
+  resending.value = true
   let ok = 0
-  for (const entry of resendable.value) {
-    const destination = byId.value.get(entry.destinationId)
-    if (destination && answerOk(resend(destination, entry))) ok++
+  let refused = ''
+  const batch = resendable.value
+  for (const entry of batch) {
+    try {
+      if (answerOk(await resend(entry.destinationId, entry.id))) ok++
+    } catch (caught) {
+      refused ||= caught instanceof Error ? caught.message : String(caught)
+    }
   }
-  resent.value = { total: resendable.value.length, ok }
+  resent.value = { total: batch.length, ok, refused }
   selected.value = []
+  resending.value = false
+  emit('changed')
 }
 </script>
 
@@ -152,7 +159,7 @@ function resendSelected() {
 
     <p v-if="resent" class="m-0 flex items-center gap-2 border-b border-line bg-ink/2 px-4 py-2 text-xs text-ink/75">
       <Icon aria-hidden="true" class="text-sm text-primary" name="material-symbols:send-outline" />
-      Resent {{ resent.total }}: {{ resent.ok }} delivered{{ resent.total - resent.ok ? `, ${resent.total - resent.ok} failed again and stay on the schedule` : '' }}.
+      Resent {{ resent.total }}: {{ resent.ok }} delivered{{ resent.total - resent.ok ? `, ${resent.total - resent.ok} not` : '' }}.{{ resent.refused ? ` ${resent.refused}` : '' }}
       <button class="ml-auto cursor-pointer text-ink/50 hover:text-ink" type="button" @click="resent = null">
         Dismiss
       </button>
@@ -166,7 +173,7 @@ function resendSelected() {
       :items="shown"
       :loading="loading"
       :selectable="true"
-      :empty-description="deliveries.length ? 'No delivery matches these filters.' : 'Events will be listed here as they are sent. Send a test event to see one now.'"
+      :empty-description="deliveries.length ? 'No delivery matches these filters.' : status !== 'all' ? 'None with this status in the last 30 days.' : 'Events will be listed here as they are sent. Send a test event to see one now.'"
       :empty-title="deliveries.length ? 'No deliveries match.' : 'No deliveries yet.'"
       item-value="id"
       label="Deliveries"
@@ -174,6 +181,7 @@ function resendSelected() {
       <template #selection>
         <v-btn
           :disabled="!resendable.length"
+          :loading="resending"
           class="text-xs font-medium"
           color="primary"
           prepend-icon="material-symbols:send-outline"
@@ -205,28 +213,41 @@ function resendSelected() {
         </NuxtLink>
       </template>
       <template #cell.answer="{ item }">
-        <span v-if="item.attempts.length" class="flex items-baseline gap-2 whitespace-nowrap">
-          <span :class="answerOk(item.attempts.at(-1)!) ? 'text-ink/75' : 'text-error'" class="font-mono text-xs">{{ answerWords(item.attempts.at(-1)!) }}</span>
-          <span class="font-mono text-[11px] text-ink/40">{{ msWords(item.attempts.at(-1)!.ms) }}</span>
+        <span v-if="item.attempts" class="flex items-baseline gap-2 whitespace-nowrap">
+          <span :class="answerOk({ code: item.lastCode }) ? 'text-ink/75' : 'text-error'" class="font-mono text-xs">{{ answerWords({ code: item.lastCode, error: item.lastError }) }}</span>
         </span>
         <span v-else class="text-[11px] text-ink/40">Not tried yet</span>
       </template>
       <template #cell.attempts="{ item }">
-        <span :class="item.attempts.length > 1 ? 'text-ink/75' : 'text-ink/40'" class="font-mono text-xs">{{ item.attempts.length }}</span>
+        <span :class="item.attempts > 1 ? 'text-ink/75' : 'text-ink/40'" class="font-mono text-xs">{{ item.attempts }}</span>
       </template>
       <template #cell.environment="{ item }">
-        <span class="text-xs text-ink/65">{{ ENVIRONMENT_LABELS[item.environment] }}</span>
+        <span class="text-xs text-ink/65">{{ item.environment ? ENVIRONMENT_LABELS[item.environment] : 'Project' }}</span>
       </template>
       <template #cell.created="{ item }">
         <span :title="stamp(item.created)" class="text-xs whitespace-nowrap text-ink/60">{{ relativeWords(item.created, time) }}</span>
       </template>
     </DataTable>
 
+    <div v-if="hasMore" class="flex justify-center border-t border-line px-5 py-3">
+      <v-btn
+        :loading="loadingMore"
+        class="text-xs font-medium"
+        color="neutral"
+        size="small"
+        variant="text"
+        @click="emit('more')"
+      >
+        Load older deliveries
+      </v-btn>
+    </div>
+
     <DeliveryDialog
       v-if="opened && byId.get(opened.destinationId)"
       v-model="openModel"
       :delivery="opened"
       :destination="byId.get(opened.destinationId)!"
+      @changed="emit('changed')"
     />
   </div>
 </template>
