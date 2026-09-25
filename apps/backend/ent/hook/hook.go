@@ -573,6 +573,42 @@ func (f VerifiedPurchaseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VerifiedPurchaseMutation", m)
 }
 
+// The WebhookEndpointFunc type is an adapter to allow the use of ordinary
+// function as WebhookEndpoint mutator.
+type WebhookEndpointFunc func(context.Context, *ent.WebhookEndpointMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WebhookEndpointFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WebhookEndpointMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WebhookEndpointMutation", m)
+}
+
+// The WebhookOutboxFunc type is an adapter to allow the use of ordinary
+// function as WebhookOutbox mutator.
+type WebhookOutboxFunc func(context.Context, *ent.WebhookOutboxMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WebhookOutboxFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WebhookOutboxMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WebhookOutboxMutation", m)
+}
+
+// The WebhookRetryFunc type is an adapter to allow the use of ordinary
+// function as WebhookRetry mutator.
+type WebhookRetryFunc func(context.Context, *ent.WebhookRetryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WebhookRetryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WebhookRetryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WebhookRetryMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

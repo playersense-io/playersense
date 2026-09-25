@@ -122,6 +122,14 @@ func PublishConfig(ctx *muzak.Context, in schemas.PublishConfigIn) (schemas.Conf
 		_ = tx.Rollback()
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}
+	if err := emit(ctx, tx, in.Environment, "config.published", map[string]any{
+		"environment": in.Environment, "version": created.Version, "published_by": principal.User.Email,
+		"changes": map[string]any{"flags": len(document.Flags), "liveops_events": len(document.Events)},
+		"note":    in.Note, "published_at": created.CreatedAt.UTC(),
+	}); err != nil {
+		_ = tx.Rollback()
+		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
+	}
 	if err := tx.Commit(); err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)
 	}

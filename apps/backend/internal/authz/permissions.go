@@ -93,6 +93,11 @@ const (
 	// Connecting the game's stores: the credentials its players' purchases are verified with.
 	// Reading the purchases themselves is player.read.
 	PurchasesConfigure Permission = "purchases.configure"
+
+	// Webhook endpoints: reading them and their deliveries, and changing, testing and resending.
+	// A delivery's body names players, so reading is its own grant.
+	WebhooksRead  Permission = "webhooks.read"
+	WebhooksWrite Permission = "webhooks.write"
 )
 
 // scopes is the vocabulary itself. A permission absent from this map does not exist.
@@ -135,6 +140,9 @@ var scopes = map[Permission]Scope{
 	ReportsWrite: ScopeProject,
 
 	PurchasesConfigure: ScopeProject,
+
+	WebhooksRead:  ScopeProject,
+	WebhooksWrite: ScopeProject,
 }
 
 // reads is the half of the vocabulary that only looks.
@@ -154,6 +162,7 @@ var reads = map[Permission]bool{
 	MemberRead:    true,
 	BillingRead:   true,
 	ReportsRead:   true,
+	WebhooksRead:  true,
 	AuditRead:     true,
 	KeyRead:       true,
 	AnalyticsRead: true,

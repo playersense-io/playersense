@@ -16,6 +16,7 @@ import (
 	"playersense.dev/backend/ent/purchaseprovider"
 	"playersense.dev/backend/ent/verifiedpurchase"
 	"playersense.dev/backend/internal/stores"
+	"playersense.dev/backend/internal/webhooks"
 )
 
 // Where a refund was heard.
@@ -78,12 +79,16 @@ func (s *Service) ApplyRefund(ctx context.Context, projectUID uuid.UUID, r store
 			changed = true
 			return tx.PurchaseChange.Create().SetPurchaseID(p.ID).SetKind(purchasechange.KindReinstate).SetAt(at).Exec(ctx)
 		case !r.Reversed && p.Status == verifiedpurchase.StatusVerified:
-			if err := tx.VerifiedPurchase.UpdateOne(p).SetStatus(verifiedpurchase.StatusRefunded).
-				SetRefundedAt(at).SetRefundReason(string(r.Reason)).SetRefundSource(source).Exec(ctx); err != nil {
+			refunded, err := tx.VerifiedPurchase.UpdateOne(p).SetStatus(verifiedpurchase.StatusRefunded).
+				SetRefundedAt(at).SetRefundReason(string(r.Reason)).SetRefundSource(source).Save(ctx)
+			if err != nil {
 				return err
 			}
 			changed = true
-			return tx.PurchaseChange.Create().SetPurchaseID(p.ID).SetKind(purchasechange.KindRefund).SetAt(at).Exec(ctx)
+			if err := tx.PurchaseChange.Create().SetPurchaseID(p.ID).SetKind(purchasechange.KindRefund).SetAt(at).Exec(ctx); err != nil {
+				return err
+			}
+			return s.emitRefund(ctx, tx, refunded)
 		case !r.Reversed && p.RefundReason == "" && r.Reason != "":
 			// Heard first from a notification that gave no reason; the sweep knows it.
 			return tx.VerifiedPurchase.UpdateOne(p).SetRefundReason(string(r.Reason)).Exec(ctx)
@@ -91,6 +96,21 @@ func (s *Service) ApplyRefund(ctx context.Context, projectUID uuid.UUID, r store
 		return nil
 	})
 	return changed, err
+}
+
+// emitRefund tells the project's endpoints that a purchase was given back. A refund reversed sends
+// nothing: a studio that took back an item decides for itself whether to give it again.
+func (s *Service) emitRefund(ctx context.Context, tx *ent.Tx, p *ent.VerifiedPurchase) error {
+	proj, err := tx.Project.Query().Where(project.UID(p.ProjectUID)).Only(ctx)
+	if err != nil {
+		return err
+	}
+	env := ""
+	if e, err := tx.Environment.Get(ctx, p.EnvironmentID); err == nil {
+		env = string(e.Kind)
+	}
+	return webhooks.Emit(ctx, tx.Client(), webhooks.Event{ProjectID: proj.ID, ProjectUID: proj.UID, Environment: env,
+		Type: "purchase.refunded", Data: map[string]any{"purchase": Document(p, false)}})
 }
 
 // providerAt finds the provider a notification URL names, and checks its token.

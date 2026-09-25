@@ -283,7 +283,7 @@ func (s *Sender) send(ctx context.Context, ch Channel, m Message) (string, error
 		now := time.Now()
 		headers := map[string]string{
 			signing.HeaderID: id, signing.HeaderTimestamp: fmt.Sprint(now.Unix()),
-			signing.HeaderSignature: signing.Sign(id, now, body, ch.SigningSecret),
+			signing.HeaderSignature: signing.Sign(now, body, ch.SigningSecret),
 		}
 		if ch.HeaderName != "" {
 			headers[ch.HeaderName] = ch.HeaderValue

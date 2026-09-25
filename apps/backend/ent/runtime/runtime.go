@@ -54,6 +54,9 @@ import (
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/ent/verifiedpurchase"
+	"playersense.dev/backend/ent/webhookendpoint"
+	"playersense.dev/backend/ent/webhookoutbox"
+	"playersense.dev/backend/ent/webhookretry"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -3105,6 +3108,171 @@ func init() {
 	verifiedpurchase.DefaultVerifiedVia = verifiedpurchaseDescVerifiedVia.Default.(string)
 	// verifiedpurchase.VerifiedViaValidator is a validator for the "verified_via" field. It is called by the builders before save.
 	verifiedpurchase.VerifiedViaValidator = verifiedpurchaseDescVerifiedVia.Validators[0].(func(string) error)
+	webhookendpointMixin := schema.WebhookEndpoint{}.Mixin()
+	webhookendpointMixinFields0 := webhookendpointMixin[0].Fields()
+	_ = webhookendpointMixinFields0
+	webhookendpointFields := schema.WebhookEndpoint{}.Fields()
+	_ = webhookendpointFields
+	// webhookendpointDescUID is the schema descriptor for uid field.
+	webhookendpointDescUID := webhookendpointMixinFields0[1].Descriptor()
+	// webhookendpoint.DefaultUID holds the default value on creation for the uid field.
+	webhookendpoint.DefaultUID = webhookendpointDescUID.Default.(func() uuid.UUID)
+	// webhookendpointDescCreatedAt is the schema descriptor for created_at field.
+	webhookendpointDescCreatedAt := webhookendpointMixinFields0[2].Descriptor()
+	// webhookendpoint.DefaultCreatedAt holds the default value on creation for the created_at field.
+	webhookendpoint.DefaultCreatedAt = webhookendpointDescCreatedAt.Default.(func() time.Time)
+	// webhookendpointDescUpdatedAt is the schema descriptor for updated_at field.
+	webhookendpointDescUpdatedAt := webhookendpointMixinFields0[3].Descriptor()
+	// webhookendpoint.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	webhookendpoint.DefaultUpdatedAt = webhookendpointDescUpdatedAt.Default.(func() time.Time)
+	// webhookendpoint.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	webhookendpoint.UpdateDefaultUpdatedAt = webhookendpointDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// webhookendpointDescName is the schema descriptor for name field.
+	webhookendpointDescName := webhookendpointFields[1].Descriptor()
+	// webhookendpoint.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	webhookendpoint.NameValidator = func() func(string) error {
+		validators := webhookendpointDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// webhookendpointDescDescription is the schema descriptor for description field.
+	webhookendpointDescDescription := webhookendpointFields[2].Descriptor()
+	// webhookendpoint.DefaultDescription holds the default value on creation for the description field.
+	webhookendpoint.DefaultDescription = webhookendpointDescDescription.Default.(string)
+	// webhookendpoint.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	webhookendpoint.DescriptionValidator = webhookendpointDescDescription.Validators[0].(func(string) error)
+	// webhookendpointDescURL is the schema descriptor for url field.
+	webhookendpointDescURL := webhookendpointFields[3].Descriptor()
+	// webhookendpoint.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	webhookendpoint.URLValidator = func() func(string) error {
+		validators := webhookendpointDescURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(url string) error {
+			for _, fn := range fns {
+				if err := fn(url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// webhookendpointDescEnabled is the schema descriptor for enabled field.
+	webhookendpointDescEnabled := webhookendpointFields[6].Descriptor()
+	// webhookendpoint.DefaultEnabled holds the default value on creation for the enabled field.
+	webhookendpoint.DefaultEnabled = webhookendpointDescEnabled.Default.(bool)
+	// webhookendpointDescDisabledReason is the schema descriptor for disabled_reason field.
+	webhookendpointDescDisabledReason := webhookendpointFields[7].Descriptor()
+	// webhookendpoint.DefaultDisabledReason holds the default value on creation for the disabled_reason field.
+	webhookendpoint.DefaultDisabledReason = webhookendpointDescDisabledReason.Default.(string)
+	// webhookendpoint.DisabledReasonValidator is a validator for the "disabled_reason" field. It is called by the builders before save.
+	webhookendpoint.DisabledReasonValidator = webhookendpointDescDisabledReason.Validators[0].(func(string) error)
+	// webhookendpointDescAPIVersion is the schema descriptor for api_version field.
+	webhookendpointDescAPIVersion := webhookendpointFields[9].Descriptor()
+	// webhookendpoint.APIVersionValidator is a validator for the "api_version" field. It is called by the builders before save.
+	webhookendpoint.APIVersionValidator = webhookendpointDescAPIVersion.Validators[0].(func(string) error)
+	// webhookendpointDescHeaders is the schema descriptor for headers field.
+	webhookendpointDescHeaders := webhookendpointFields[10].Descriptor()
+	// webhookendpoint.DefaultHeaders holds the default value on creation for the headers field.
+	webhookendpoint.DefaultHeaders = webhookendpointDescHeaders.Default.([]schema.WebhookHeader)
+	// webhookendpointDescHeaderSecrets is the schema descriptor for header_secrets field.
+	webhookendpointDescHeaderSecrets := webhookendpointFields[11].Descriptor()
+	// webhookendpoint.DefaultHeaderSecrets holds the default value on creation for the header_secrets field.
+	webhookendpoint.DefaultHeaderSecrets = webhookendpointDescHeaderSecrets.Default.(map[string]string)
+	// webhookendpointDescPreviousSecret is the schema descriptor for previous_secret field.
+	webhookendpointDescPreviousSecret := webhookendpointFields[14].Descriptor()
+	// webhookendpoint.DefaultPreviousSecret holds the default value on creation for the previous_secret field.
+	webhookendpoint.DefaultPreviousSecret = webhookendpointDescPreviousSecret.Default.(string)
+	// webhookendpointDescCreatedBy is the schema descriptor for created_by field.
+	webhookendpointDescCreatedBy := webhookendpointFields[17].Descriptor()
+	// webhookendpoint.DefaultCreatedBy holds the default value on creation for the created_by field.
+	webhookendpoint.DefaultCreatedBy = webhookendpointDescCreatedBy.Default.(string)
+	// webhookendpoint.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	webhookendpoint.CreatedByValidator = webhookendpointDescCreatedBy.Validators[0].(func(string) error)
+	// webhookendpointDescUpdatedBy is the schema descriptor for updated_by field.
+	webhookendpointDescUpdatedBy := webhookendpointFields[18].Descriptor()
+	// webhookendpoint.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	webhookendpoint.DefaultUpdatedBy = webhookendpointDescUpdatedBy.Default.(string)
+	// webhookendpoint.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	webhookendpoint.UpdatedByValidator = webhookendpointDescUpdatedBy.Validators[0].(func(string) error)
+	webhookoutboxMixin := schema.WebhookOutbox{}.Mixin()
+	webhookoutboxMixinFields0 := webhookoutboxMixin[0].Fields()
+	_ = webhookoutboxMixinFields0
+	webhookoutboxFields := schema.WebhookOutbox{}.Fields()
+	_ = webhookoutboxFields
+	// webhookoutboxDescUID is the schema descriptor for uid field.
+	webhookoutboxDescUID := webhookoutboxMixinFields0[1].Descriptor()
+	// webhookoutbox.DefaultUID holds the default value on creation for the uid field.
+	webhookoutbox.DefaultUID = webhookoutboxDescUID.Default.(func() uuid.UUID)
+	// webhookoutboxDescCreatedAt is the schema descriptor for created_at field.
+	webhookoutboxDescCreatedAt := webhookoutboxMixinFields0[2].Descriptor()
+	// webhookoutbox.DefaultCreatedAt holds the default value on creation for the created_at field.
+	webhookoutbox.DefaultCreatedAt = webhookoutboxDescCreatedAt.Default.(func() time.Time)
+	// webhookoutboxDescUpdatedAt is the schema descriptor for updated_at field.
+	webhookoutboxDescUpdatedAt := webhookoutboxMixinFields0[3].Descriptor()
+	// webhookoutbox.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	webhookoutbox.DefaultUpdatedAt = webhookoutboxDescUpdatedAt.Default.(func() time.Time)
+	// webhookoutbox.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	webhookoutbox.UpdateDefaultUpdatedAt = webhookoutboxDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// webhookoutboxDescEnvironment is the schema descriptor for environment field.
+	webhookoutboxDescEnvironment := webhookoutboxFields[1].Descriptor()
+	// webhookoutbox.DefaultEnvironment holds the default value on creation for the environment field.
+	webhookoutbox.DefaultEnvironment = webhookoutboxDescEnvironment.Default.(string)
+	// webhookoutbox.EnvironmentValidator is a validator for the "environment" field. It is called by the builders before save.
+	webhookoutbox.EnvironmentValidator = webhookoutboxDescEnvironment.Validators[0].(func(string) error)
+	// webhookoutboxDescType is the schema descriptor for type field.
+	webhookoutboxDescType := webhookoutboxFields[2].Descriptor()
+	// webhookoutbox.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	webhookoutbox.TypeValidator = webhookoutboxDescType.Validators[0].(func(string) error)
+	webhookretryMixin := schema.WebhookRetry{}.Mixin()
+	webhookretryMixinFields0 := webhookretryMixin[0].Fields()
+	_ = webhookretryMixinFields0
+	webhookretryFields := schema.WebhookRetry{}.Fields()
+	_ = webhookretryFields
+	// webhookretryDescUID is the schema descriptor for uid field.
+	webhookretryDescUID := webhookretryMixinFields0[1].Descriptor()
+	// webhookretry.DefaultUID holds the default value on creation for the uid field.
+	webhookretry.DefaultUID = webhookretryDescUID.Default.(func() uuid.UUID)
+	// webhookretryDescCreatedAt is the schema descriptor for created_at field.
+	webhookretryDescCreatedAt := webhookretryMixinFields0[2].Descriptor()
+	// webhookretry.DefaultCreatedAt holds the default value on creation for the created_at field.
+	webhookretry.DefaultCreatedAt = webhookretryDescCreatedAt.Default.(func() time.Time)
+	// webhookretryDescUpdatedAt is the schema descriptor for updated_at field.
+	webhookretryDescUpdatedAt := webhookretryMixinFields0[3].Descriptor()
+	// webhookretry.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	webhookretry.DefaultUpdatedAt = webhookretryDescUpdatedAt.Default.(func() time.Time)
+	// webhookretry.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	webhookretry.UpdateDefaultUpdatedAt = webhookretryDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// webhookretryDescType is the schema descriptor for type field.
+	webhookretryDescType := webhookretryFields[3].Descriptor()
+	// webhookretry.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	webhookretry.TypeValidator = webhookretryDescType.Validators[0].(func(string) error)
+	// webhookretryDescEnvironment is the schema descriptor for environment field.
+	webhookretryDescEnvironment := webhookretryFields[4].Descriptor()
+	// webhookretry.DefaultEnvironment holds the default value on creation for the environment field.
+	webhookretry.DefaultEnvironment = webhookretryDescEnvironment.Default.(string)
+	// webhookretry.EnvironmentValidator is a validator for the "environment" field. It is called by the builders before save.
+	webhookretry.EnvironmentValidator = webhookretryDescEnvironment.Validators[0].(func(string) error)
+	// webhookretryDescAttempts is the schema descriptor for attempts field.
+	webhookretryDescAttempts := webhookretryFields[7].Descriptor()
+	// webhookretry.DefaultAttempts holds the default value on creation for the attempts field.
+	webhookretry.DefaultAttempts = webhookretryDescAttempts.Default.(int)
+	// webhookretryDescManual is the schema descriptor for manual field.
+	webhookretryDescManual := webhookretryFields[10].Descriptor()
+	// webhookretry.DefaultManual holds the default value on creation for the manual field.
+	webhookretry.DefaultManual = webhookretryDescManual.Default.(bool)
 }
 
 const (

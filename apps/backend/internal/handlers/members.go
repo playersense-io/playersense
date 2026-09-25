@@ -272,6 +272,13 @@ func RemoveMember(ctx *muzak.Context, in schemas.MemberParams) (muzak.Empty, err
 	if err != nil {
 		return muzak.Empty{}, core.AsHTTPError(err)
 	}
+	// Told before the membership goes: which projects they reached is part of what goes with it.
+	if err := emitForMember(ctx.Context(), tx, principal.Organization.ID, member, "member.removed",
+		map[string]any{"member": map[string]any{"email": memberEmail(member), "role": removed["role"],
+			"removed_by": actorOf(ctx).Label}}); err != nil {
+		_ = tx.Rollback()
+		return muzak.Empty{}, core.AsHTTPError(err)
+	}
 	if err := identity.RemoveMember(ctx.Context(), tx.Client(),
 		principal.Organization.ID, member.ID); err != nil {
 		_ = tx.Rollback()
@@ -570,12 +577,16 @@ func AcceptInvitation(ctx *muzak.Context, in schemas.AcceptInvitationIn) (schema
 	// the path that wrote one, never on the already-a-member branch, which committed nothing for
 	// an entry to attach to.
 	hook := func(tx *ent.Tx, accepted *identity.Accepted) error {
-		return auditFor(ctx).forOrganization(accepted.Organization.ID).
+		if err := auditFor(ctx).forOrganization(accepted.Organization.ID).
 			record(ctx.Context(), tx, audit.MemberJoined,
 				"member", accepted.Member.UID.String(), map[string]any{
 					"email": principal.Claims.Email,
 					"role":  roleKeyOf(accepted.Role),
-				})
+				}); err != nil {
+			return err
+		}
+		return emitForMember(ctx.Context(), tx, accepted.Organization.ID, accepted.Member, "member.added",
+			map[string]any{"member": map[string]any{"email": principal.Claims.Email, "role": roleKeyOf(accepted.Role)}})
 	}
 
 	var (

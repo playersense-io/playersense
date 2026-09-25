@@ -196,7 +196,7 @@ func CheckPurchase(ctx *muzak.Context, in schemas.PurchaseCheckIn) (schemas.Purc
 			Currency: t.Currency, PriceFromStore: t.PriceFromStore, Country: t.Country, Sandbox: t.Sandbox,
 			RefundedAt: t.RefundedAt, RefundReason: string(t.RefundReason)}
 		if p, err := svc.Lookup(ctx.Context(), proj.UID, req.Platform, t.TransactionID); err == nil && p != nil {
-			doc := purchaseDoc(p, false)
+			doc := purchases.Document(p, false)
 			out.Recorded = &doc
 		}
 	}

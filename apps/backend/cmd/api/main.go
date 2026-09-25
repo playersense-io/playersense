@@ -61,6 +61,7 @@ import (
 	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/transport"
 	"playersense.dev/backend/internal/valkey"
+	"playersense.dev/backend/internal/webhooks"
 )
 
 func main() {
@@ -376,6 +377,10 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(core.NewKeyUsage(cache, db, slog.Default(), 15*time.Second)),
 		// Game purchases, verified with the App Store, Google Play and Steam (§46-48).
 		muzak.WithSingleton(&purchases.Service{DB: db, Stores: stores.Live(nil), PublicURL: settings.PublicURL}),
+		// A webhook's test sends and resends, made while the person waits (§49-51). The worker
+		// delivers everything else.
+		muzak.WithSingleton(&webhooks.Sender{DB: db, CH: ch, Deliver: webhooks.NewDeliverer(settings.NotifyAllowPrivate),
+			AllowPrivate: settings.NotifyAllowPrivate}),
 	}
 
 	// Appended last, so a later declaration of the same type wins.
@@ -444,6 +449,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	api.Include(routers.Channels())
 	api.Include(routers.Reports())
 	api.Include(routers.Stores())
+	api.Include(routers.Webhooks())
 
 	// The invitation routes the *invited* person uses, which name no organization: there
 	// is no membership yet, which is the whole point. Mounted in the same subtree so they
@@ -501,6 +507,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 	operator.Include(routers.OperatorPricing())
 	operator.Include(routers.OperatorAnalytics())
 	operator.Include(routers.OperatorPurchases())
+	operator.Include(routers.OperatorWebhooks())
 	app.Include(operator,
 		muzak.WithPrefix("/v1/operator"),
 		muzak.Needs(core.ResolveStaff),

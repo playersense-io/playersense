@@ -22,13 +22,13 @@ import (
 // signed, and every send in its log.
 func TestAChannelIsSetUpTestedAndLogged(t *testing.T) {
 	var received atomic.Int32
-	var lastSig, lastID, lastTS string
+	var lastSig, lastTS string
 	var lastBody []byte
 	failing := atomic.Bool{}
 	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		received.Add(1)
 		lastBody, _ = io.ReadAll(r.Body)
-		lastSig, lastID, lastTS = r.Header.Get(signing.HeaderSignature), r.Header.Get(signing.HeaderID), r.Header.Get(signing.HeaderTimestamp)
+		lastSig, lastTS = r.Header.Get(signing.HeaderSignature), r.Header.Get(signing.HeaderTimestamp)
 		if failing.Load() {
 			http.Error(w, "gone", http.StatusGone)
 		}
@@ -66,7 +66,7 @@ func TestAChannelIsSetUpTestedAndLogged(t *testing.T) {
 	if !tested.OK {
 		t.Fatalf("test %+v", tested)
 	}
-	if err := signing.Verify(made.SigningSecret, lastID, lastTS, lastSig, lastBody, time.Now()); err != nil {
+	if err := signing.Verify(made.SigningSecret, lastTS, lastSig, lastBody, time.Now()); err != nil {
 		t.Fatalf("the test was not signed with the channel's secret: %v", err)
 	}
 	if got := testclient.Decoded[schemas.ChannelOut](client.Get(one).AssertStatus(http.StatusOK)); got.Status != "working" {

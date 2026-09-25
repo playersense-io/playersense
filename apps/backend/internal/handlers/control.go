@@ -217,6 +217,12 @@ func CreateAPIKey(ctx *muzak.Context, in schemas.CreateAPIKeyIn) (schemas.APIKey
 		_ = tx.Rollback()
 		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
 	}
+	if err := emit(ctx, tx, "", "api_key.created", map[string]any{"key": map[string]any{
+		"id": key.UID, "kind": in.Kind, "environment": string(env.Kind), "name": in.Name, "prefix": key.PublicID,
+	}}); err != nil {
+		_ = tx.Rollback()
+		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
+	}
 	if err := tx.Commit(); err != nil {
 		return schemas.APIKeyCreatedOut{}, core.AsHTTPError(err)
 	}
@@ -308,6 +314,12 @@ func RevokeAPIKey(ctx *muzak.Context, in schemas.RevokeAPIKeyIn) (schemas.APIKey
 			"kind": string(key.Kind), "name": key.Name, "public_id": key.PublicID,
 			"project": proj.Slug,
 		}); err != nil {
+		_ = tx.Rollback()
+		return schemas.APIKeyOut{}, core.AsHTTPError(err)
+	}
+	if err := emit(ctx, tx, "", "api_key.revoked", map[string]any{"key": map[string]any{
+		"id": key.UID, "kind": string(key.Kind), "name": key.Name, "prefix": key.PublicID,
+	}}); err != nil {
 		_ = tx.Rollback()
 		return schemas.APIKeyOut{}, core.AsHTTPError(err)
 	}

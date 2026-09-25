@@ -108,6 +108,12 @@ type Tx struct {
 	User *UserClient
 	// VerifiedPurchase is the client for interacting with the VerifiedPurchase builders.
 	VerifiedPurchase *VerifiedPurchaseClient
+	// WebhookEndpoint is the client for interacting with the WebhookEndpoint builders.
+	WebhookEndpoint *WebhookEndpointClient
+	// WebhookOutbox is the client for interacting with the WebhookOutbox builders.
+	WebhookOutbox *WebhookOutboxClient
+	// WebhookRetry is the client for interacting with the WebhookRetry builders.
+	WebhookRetry *WebhookRetryClient
 
 	// lazily loaded.
 	client     *Client
@@ -286,6 +292,9 @@ func (tx *Tx) init() {
 	tx.UsageDaily = NewUsageDailyClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.VerifiedPurchase = NewVerifiedPurchaseClient(tx.config)
+	tx.WebhookEndpoint = NewWebhookEndpointClient(tx.config)
+	tx.WebhookOutbox = NewWebhookOutboxClient(tx.config)
+	tx.WebhookRetry = NewWebhookRetryClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

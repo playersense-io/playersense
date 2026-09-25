@@ -1944,6 +1944,104 @@ var (
 			},
 		},
 	}
+	// WebhookEndpointsColumns holds the columns for the "webhook_endpoints" table.
+	WebhookEndpointsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "name", Type: field.TypeString, Size: 120, Comment: "class=none"},
+		{Name: "description", Type: field.TypeString, Size: 500, Comment: "class=none", Default: ""},
+		{Name: "url", Type: field.TypeString, Size: 2048, Comment: "class=none"},
+		{Name: "events", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "environments", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "enabled", Type: field.TypeBool, Comment: "class=none", Default: true},
+		{Name: "disabled_reason", Type: field.TypeString, Size: 20, Comment: "class=none", Default: ""},
+		{Name: "disabled_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "api_version", Type: field.TypeString, Size: 20, Comment: "class=none"},
+		{Name: "headers", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "header_secrets", Type: field.TypeJSON, Comment: "class=none"},
+		{Name: "secret", Type: field.TypeString, Comment: "class=none"},
+		{Name: "secret_created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "previous_secret", Type: field.TypeString, Comment: "class=none", Default: ""},
+		{Name: "previous_expires_at", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "failing_since", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "created_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+		{Name: "updated_by", Type: field.TypeString, Size: 254, Comment: "class=none", Default: ""},
+	}
+	// WebhookEndpointsTable holds the schema information for the "webhook_endpoints" table.
+	WebhookEndpointsTable = &schema.Table{
+		Name:       "webhook_endpoints",
+		Columns:    WebhookEndpointsColumns,
+		PrimaryKey: []*schema.Column{WebhookEndpointsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "webhookendpoint_project_id",
+				Unique:  false,
+				Columns: []*schema.Column{WebhookEndpointsColumns[4]},
+			},
+			{
+				Name:    "webhookendpoint_enabled_failing_since",
+				Unique:  false,
+				Columns: []*schema.Column{WebhookEndpointsColumns[10], WebhookEndpointsColumns[20]},
+			},
+		},
+	}
+	// WebhookOutboxesColumns holds the columns for the "webhook_outboxes" table.
+	WebhookOutboxesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "environment", Type: field.TypeString, Size: 20, Comment: "class=none", Default: ""},
+		{Name: "type", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "body", Type: field.TypeBytes, Comment: "class=identifier"},
+		{Name: "claimed_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+	}
+	// WebhookOutboxesTable holds the schema information for the "webhook_outboxes" table.
+	WebhookOutboxesTable = &schema.Table{
+		Name:       "webhook_outboxes",
+		Columns:    WebhookOutboxesColumns,
+		PrimaryKey: []*schema.Column{WebhookOutboxesColumns[0]},
+	}
+	// WebhookRetriesColumns holds the columns for the "webhook_retries" table.
+	WebhookRetriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true, Comment: "class=none"},
+		{Name: "uid", Type: field.TypeUUID, Unique: true, Comment: "class=none"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "endpoint_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "project_id", Type: field.TypeInt, Comment: "class=none"},
+		{Name: "event_uid", Type: field.TypeUUID, Comment: "class=none"},
+		{Name: "type", Type: field.TypeString, Size: 64, Comment: "class=none"},
+		{Name: "environment", Type: field.TypeString, Size: 20, Comment: "class=none", Default: ""},
+		{Name: "body", Type: field.TypeBytes, Comment: "class=identifier"},
+		{Name: "first_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "attempts", Type: field.TypeInt, Comment: "class=none", Default: 0},
+		{Name: "next_at", Type: field.TypeTime, Comment: "class=none"},
+		{Name: "claimed_until", Type: field.TypeTime, Nullable: true, Comment: "class=none"},
+		{Name: "manual", Type: field.TypeBool, Comment: "class=none", Default: false},
+	}
+	// WebhookRetriesTable holds the schema information for the "webhook_retries" table.
+	WebhookRetriesTable = &schema.Table{
+		Name:       "webhook_retries",
+		Columns:    WebhookRetriesColumns,
+		PrimaryKey: []*schema.Column{WebhookRetriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "webhookretry_next_at",
+				Unique:  false,
+				Columns: []*schema.Column{WebhookRetriesColumns[12]},
+			},
+			{
+				Name:    "webhookretry_endpoint_id",
+				Unique:  false,
+				Columns: []*schema.Column{WebhookRetriesColumns[4]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APIKeysTable,
@@ -1993,6 +2091,9 @@ var (
 		UsageDailyTable,
 		UsersTable,
 		VerifiedPurchasesTable,
+		WebhookEndpointsTable,
+		WebhookOutboxesTable,
+		WebhookRetriesTable,
 	}
 )
 

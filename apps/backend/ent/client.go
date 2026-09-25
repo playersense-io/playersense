@@ -62,6 +62,9 @@ import (
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/ent/verifiedpurchase"
+	"playersense.dev/backend/ent/webhookendpoint"
+	"playersense.dev/backend/ent/webhookoutbox"
+	"playersense.dev/backend/ent/webhookretry"
 
 	stdsql "database/sql"
 )
@@ -165,6 +168,12 @@ type Client struct {
 	User *UserClient
 	// VerifiedPurchase is the client for interacting with the VerifiedPurchase builders.
 	VerifiedPurchase *VerifiedPurchaseClient
+	// WebhookEndpoint is the client for interacting with the WebhookEndpoint builders.
+	WebhookEndpoint *WebhookEndpointClient
+	// WebhookOutbox is the client for interacting with the WebhookOutbox builders.
+	WebhookOutbox *WebhookOutboxClient
+	// WebhookRetry is the client for interacting with the WebhookRetry builders.
+	WebhookRetry *WebhookRetryClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -223,6 +232,9 @@ func (c *Client) init() {
 	c.UsageDaily = NewUsageDailyClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.VerifiedPurchase = NewVerifiedPurchaseClient(c.config)
+	c.WebhookEndpoint = NewWebhookEndpointClient(c.config)
+	c.WebhookOutbox = NewWebhookOutboxClient(c.config)
+	c.WebhookRetry = NewWebhookRetryClient(c.config)
 }
 
 type (
@@ -362,6 +374,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UsageDaily:          NewUsageDailyClient(cfg),
 		User:                NewUserClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
+		WebhookEndpoint:     NewWebhookEndpointClient(cfg),
+		WebhookOutbox:       NewWebhookOutboxClient(cfg),
+		WebhookRetry:        NewWebhookRetryClient(cfg),
 	}, nil
 }
 
@@ -428,6 +443,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UsageDaily:          NewUsageDailyClient(cfg),
 		User:                NewUserClient(cfg),
 		VerifiedPurchase:    NewVerifiedPurchaseClient(cfg),
+		WebhookEndpoint:     NewWebhookEndpointClient(cfg),
+		WebhookOutbox:       NewWebhookOutboxClient(cfg),
+		WebhookRetry:        NewWebhookRetryClient(cfg),
 	}, nil
 }
 
@@ -466,7 +484,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
 		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
 		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase, c.WebhookEndpoint,
+		c.WebhookOutbox, c.WebhookRetry,
 	} {
 		n.Use(hooks...)
 	}
@@ -485,7 +504,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Plan, c.Project, c.PurchaseAttempt, c.PurchaseChange, c.PurchaseProvider,
 		c.RateCard, c.Receipt, c.Report, c.ReportExport, c.ReportRun, c.ReportRunEvent,
 		c.Role, c.SavedFunnel, c.Segment, c.StaffAccess, c.StaffMember, c.StripeEvent,
-		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase,
+		c.UsageCharge, c.UsageDaily, c.User, c.VerifiedPurchase, c.WebhookEndpoint,
+		c.WebhookOutbox, c.WebhookRetry,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -588,6 +608,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	case *VerifiedPurchaseMutation:
 		return c.VerifiedPurchase.mutate(ctx, m)
+	case *WebhookEndpointMutation:
+		return c.WebhookEndpoint.mutate(ctx, m)
+	case *WebhookOutboxMutation:
+		return c.WebhookOutbox.mutate(ctx, m)
+	case *WebhookRetryMutation:
+		return c.WebhookRetry.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -8304,6 +8330,405 @@ func (c *VerifiedPurchaseClient) mutate(ctx context.Context, m *VerifiedPurchase
 	}
 }
 
+// WebhookEndpointClient is a client for the WebhookEndpoint schema.
+type WebhookEndpointClient struct {
+	config
+}
+
+// NewWebhookEndpointClient returns a client for the WebhookEndpoint from the given config.
+func NewWebhookEndpointClient(c config) *WebhookEndpointClient {
+	return &WebhookEndpointClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `webhookendpoint.Hooks(f(g(h())))`.
+func (c *WebhookEndpointClient) Use(hooks ...Hook) {
+	c.hooks.WebhookEndpoint = append(c.hooks.WebhookEndpoint, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `webhookendpoint.Intercept(f(g(h())))`.
+func (c *WebhookEndpointClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WebhookEndpoint = append(c.inters.WebhookEndpoint, interceptors...)
+}
+
+// Create returns a builder for creating a WebhookEndpoint entity.
+func (c *WebhookEndpointClient) Create() *WebhookEndpointCreate {
+	mutation := newWebhookEndpointMutation(c.config, OpCreate)
+	return &WebhookEndpointCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WebhookEndpoint entities.
+func (c *WebhookEndpointClient) CreateBulk(builders ...*WebhookEndpointCreate) *WebhookEndpointCreateBulk {
+	return &WebhookEndpointCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WebhookEndpointClient) MapCreateBulk(slice any, setFunc func(*WebhookEndpointCreate, int)) *WebhookEndpointCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WebhookEndpointCreateBulk{err: fmt.Errorf("calling to WebhookEndpointClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WebhookEndpointCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WebhookEndpointCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WebhookEndpoint.
+func (c *WebhookEndpointClient) Update() *WebhookEndpointUpdate {
+	mutation := newWebhookEndpointMutation(c.config, OpUpdate)
+	return &WebhookEndpointUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WebhookEndpointClient) UpdateOne(_m *WebhookEndpoint) *WebhookEndpointUpdateOne {
+	mutation := newWebhookEndpointMutation(c.config, OpUpdateOne, withWebhookEndpoint(_m))
+	return &WebhookEndpointUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WebhookEndpointClient) UpdateOneID(id int) *WebhookEndpointUpdateOne {
+	mutation := newWebhookEndpointMutation(c.config, OpUpdateOne, withWebhookEndpointID(id))
+	return &WebhookEndpointUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WebhookEndpoint.
+func (c *WebhookEndpointClient) Delete() *WebhookEndpointDelete {
+	mutation := newWebhookEndpointMutation(c.config, OpDelete)
+	return &WebhookEndpointDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WebhookEndpointClient) DeleteOne(_m *WebhookEndpoint) *WebhookEndpointDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WebhookEndpointClient) DeleteOneID(id int) *WebhookEndpointDeleteOne {
+	builder := c.Delete().Where(webhookendpoint.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WebhookEndpointDeleteOne{builder}
+}
+
+// Query returns a query builder for WebhookEndpoint.
+func (c *WebhookEndpointClient) Query() *WebhookEndpointQuery {
+	return &WebhookEndpointQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWebhookEndpoint},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WebhookEndpoint entity by its id.
+func (c *WebhookEndpointClient) Get(ctx context.Context, id int) (*WebhookEndpoint, error) {
+	return c.Query().Where(webhookendpoint.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WebhookEndpointClient) GetX(ctx context.Context, id int) *WebhookEndpoint {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WebhookEndpointClient) Hooks() []Hook {
+	return c.hooks.WebhookEndpoint
+}
+
+// Interceptors returns the client interceptors.
+func (c *WebhookEndpointClient) Interceptors() []Interceptor {
+	return c.inters.WebhookEndpoint
+}
+
+func (c *WebhookEndpointClient) mutate(ctx context.Context, m *WebhookEndpointMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WebhookEndpointCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WebhookEndpointUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WebhookEndpointUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WebhookEndpointDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WebhookEndpoint mutation op: %q", m.Op())
+	}
+}
+
+// WebhookOutboxClient is a client for the WebhookOutbox schema.
+type WebhookOutboxClient struct {
+	config
+}
+
+// NewWebhookOutboxClient returns a client for the WebhookOutbox from the given config.
+func NewWebhookOutboxClient(c config) *WebhookOutboxClient {
+	return &WebhookOutboxClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `webhookoutbox.Hooks(f(g(h())))`.
+func (c *WebhookOutboxClient) Use(hooks ...Hook) {
+	c.hooks.WebhookOutbox = append(c.hooks.WebhookOutbox, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `webhookoutbox.Intercept(f(g(h())))`.
+func (c *WebhookOutboxClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WebhookOutbox = append(c.inters.WebhookOutbox, interceptors...)
+}
+
+// Create returns a builder for creating a WebhookOutbox entity.
+func (c *WebhookOutboxClient) Create() *WebhookOutboxCreate {
+	mutation := newWebhookOutboxMutation(c.config, OpCreate)
+	return &WebhookOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WebhookOutbox entities.
+func (c *WebhookOutboxClient) CreateBulk(builders ...*WebhookOutboxCreate) *WebhookOutboxCreateBulk {
+	return &WebhookOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WebhookOutboxClient) MapCreateBulk(slice any, setFunc func(*WebhookOutboxCreate, int)) *WebhookOutboxCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WebhookOutboxCreateBulk{err: fmt.Errorf("calling to WebhookOutboxClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WebhookOutboxCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WebhookOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WebhookOutbox.
+func (c *WebhookOutboxClient) Update() *WebhookOutboxUpdate {
+	mutation := newWebhookOutboxMutation(c.config, OpUpdate)
+	return &WebhookOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WebhookOutboxClient) UpdateOne(_m *WebhookOutbox) *WebhookOutboxUpdateOne {
+	mutation := newWebhookOutboxMutation(c.config, OpUpdateOne, withWebhookOutbox(_m))
+	return &WebhookOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WebhookOutboxClient) UpdateOneID(id int) *WebhookOutboxUpdateOne {
+	mutation := newWebhookOutboxMutation(c.config, OpUpdateOne, withWebhookOutboxID(id))
+	return &WebhookOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WebhookOutbox.
+func (c *WebhookOutboxClient) Delete() *WebhookOutboxDelete {
+	mutation := newWebhookOutboxMutation(c.config, OpDelete)
+	return &WebhookOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WebhookOutboxClient) DeleteOne(_m *WebhookOutbox) *WebhookOutboxDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WebhookOutboxClient) DeleteOneID(id int) *WebhookOutboxDeleteOne {
+	builder := c.Delete().Where(webhookoutbox.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WebhookOutboxDeleteOne{builder}
+}
+
+// Query returns a query builder for WebhookOutbox.
+func (c *WebhookOutboxClient) Query() *WebhookOutboxQuery {
+	return &WebhookOutboxQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWebhookOutbox},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WebhookOutbox entity by its id.
+func (c *WebhookOutboxClient) Get(ctx context.Context, id int) (*WebhookOutbox, error) {
+	return c.Query().Where(webhookoutbox.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WebhookOutboxClient) GetX(ctx context.Context, id int) *WebhookOutbox {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WebhookOutboxClient) Hooks() []Hook {
+	return c.hooks.WebhookOutbox
+}
+
+// Interceptors returns the client interceptors.
+func (c *WebhookOutboxClient) Interceptors() []Interceptor {
+	return c.inters.WebhookOutbox
+}
+
+func (c *WebhookOutboxClient) mutate(ctx context.Context, m *WebhookOutboxMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WebhookOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WebhookOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WebhookOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WebhookOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WebhookOutbox mutation op: %q", m.Op())
+	}
+}
+
+// WebhookRetryClient is a client for the WebhookRetry schema.
+type WebhookRetryClient struct {
+	config
+}
+
+// NewWebhookRetryClient returns a client for the WebhookRetry from the given config.
+func NewWebhookRetryClient(c config) *WebhookRetryClient {
+	return &WebhookRetryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `webhookretry.Hooks(f(g(h())))`.
+func (c *WebhookRetryClient) Use(hooks ...Hook) {
+	c.hooks.WebhookRetry = append(c.hooks.WebhookRetry, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `webhookretry.Intercept(f(g(h())))`.
+func (c *WebhookRetryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WebhookRetry = append(c.inters.WebhookRetry, interceptors...)
+}
+
+// Create returns a builder for creating a WebhookRetry entity.
+func (c *WebhookRetryClient) Create() *WebhookRetryCreate {
+	mutation := newWebhookRetryMutation(c.config, OpCreate)
+	return &WebhookRetryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WebhookRetry entities.
+func (c *WebhookRetryClient) CreateBulk(builders ...*WebhookRetryCreate) *WebhookRetryCreateBulk {
+	return &WebhookRetryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WebhookRetryClient) MapCreateBulk(slice any, setFunc func(*WebhookRetryCreate, int)) *WebhookRetryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WebhookRetryCreateBulk{err: fmt.Errorf("calling to WebhookRetryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WebhookRetryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WebhookRetryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WebhookRetry.
+func (c *WebhookRetryClient) Update() *WebhookRetryUpdate {
+	mutation := newWebhookRetryMutation(c.config, OpUpdate)
+	return &WebhookRetryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WebhookRetryClient) UpdateOne(_m *WebhookRetry) *WebhookRetryUpdateOne {
+	mutation := newWebhookRetryMutation(c.config, OpUpdateOne, withWebhookRetry(_m))
+	return &WebhookRetryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WebhookRetryClient) UpdateOneID(id int) *WebhookRetryUpdateOne {
+	mutation := newWebhookRetryMutation(c.config, OpUpdateOne, withWebhookRetryID(id))
+	return &WebhookRetryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WebhookRetry.
+func (c *WebhookRetryClient) Delete() *WebhookRetryDelete {
+	mutation := newWebhookRetryMutation(c.config, OpDelete)
+	return &WebhookRetryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WebhookRetryClient) DeleteOne(_m *WebhookRetry) *WebhookRetryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WebhookRetryClient) DeleteOneID(id int) *WebhookRetryDeleteOne {
+	builder := c.Delete().Where(webhookretry.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WebhookRetryDeleteOne{builder}
+}
+
+// Query returns a query builder for WebhookRetry.
+func (c *WebhookRetryClient) Query() *WebhookRetryQuery {
+	return &WebhookRetryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWebhookRetry},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WebhookRetry entity by its id.
+func (c *WebhookRetryClient) Get(ctx context.Context, id int) (*WebhookRetry, error) {
+	return c.Query().Where(webhookretry.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WebhookRetryClient) GetX(ctx context.Context, id int) *WebhookRetry {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WebhookRetryClient) Hooks() []Hook {
+	return c.hooks.WebhookRetry
+}
+
+// Interceptors returns the client interceptors.
+func (c *WebhookRetryClient) Interceptors() []Interceptor {
+	return c.inters.WebhookRetry
+}
+
+func (c *WebhookRetryClient) mutate(ctx context.Context, m *WebhookRetryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WebhookRetryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WebhookRetryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WebhookRetryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WebhookRetryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WebhookRetry mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -8315,8 +8740,8 @@ type (
 		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
-		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
-		VerifiedPurchase []ent.Hook
+		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
+		WebhookEndpoint, WebhookOutbox, WebhookRetry []ent.Hook
 	}
 	inters struct {
 		APIKey, ArchiveManifest, AuditEvent, BillablePlayer, BillingAccount,
@@ -8327,8 +8752,8 @@ type (
 		OrganizationMember, PaymentCard, Plan, Project, PurchaseAttempt,
 		PurchaseChange, PurchaseProvider, RateCard, Receipt, Report, ReportExport,
 		ReportRun, ReportRunEvent, Role, SavedFunnel, Segment, StaffAccess,
-		StaffMember, StripeEvent, UsageCharge, UsageDaily, User,
-		VerifiedPurchase []ent.Interceptor
+		StaffMember, StripeEvent, UsageCharge, UsageDaily, User, VerifiedPurchase,
+		WebhookEndpoint, WebhookOutbox, WebhookRetry []ent.Interceptor
 	}
 )
 

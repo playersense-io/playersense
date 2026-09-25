@@ -180,11 +180,17 @@ func RollbackConfig(ctx *muzak.Context, in schemas.RollbackConfigIn) (schemas.Co
 		if err != nil {
 			return nil, err
 		}
-		return created, auditFor(ctx).record(ctx.Context(), tx, audit.ConfigRolledBack,
+		if err := auditFor(ctx).record(ctx.Context(), tx, audit.ConfigRolledBack,
 			"config_version", created.UID.String(), map[string]any{
 				"environment": in.Environment, "version": created.Version, "rollback_of": target.Version,
 				"reason": in.Reason,
-			})
+			}); err != nil {
+			return nil, err
+		}
+		return created, emit(ctx, tx, in.Environment, "config.rolled_back", map[string]any{
+			"environment": in.Environment, "version": created.Version, "to_version": target.Version,
+			"rolled_back_by": actorOf(ctx).Label, "reason": in.Reason,
+		})
 	})
 	if err != nil {
 		return schemas.ConfigVersionOut{}, core.AsHTTPError(err)

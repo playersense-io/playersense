@@ -166,7 +166,7 @@ GET    PUT    DELETE        …/channels/{id}
 
 Email, and incoming webhooks rather than apps: Slack, Discord and Microsoft Teams URLs made in the
 studio's own workspace, a PagerDuty service's Events API v2 key, or a webhook of the studio's, signed
-with `X-PlayerSense-Id`, `-Timestamp` and `-Signature: v1=<HMAC-SHA256 of id.timestamp.body>` with a
+with `X-PlayerSense-Id`, `-Timestamp` and `-Signature: v1=<HMAC-SHA256 of timestamp.body>` with a
 secret shown once at creation. A URL is a credential, so it is stored apart and shown back masked.
 Every destination is reached through a client that refuses private and special-purpose addresses
 after resolution and follows no redirects (`NOTIFY_ALLOW_PRIVATE=true` lifts that for a local
@@ -232,6 +232,32 @@ ClickHouse's `purchases` through the `purchase_changes` outbox, exactly once, an
 store is connected its revenue is its verified purchases rather than what the game reports ("verified
 wins"). Connecting stores needs `purchases.configure`; the log and the purchases need `player.read`.
 The web shop is not verified yet and stays what the game reports.
+
+**Webhooks** (project.md §49-51, [ADR 0049](docs/adr/0049-webhooks-hold-only-what-is-owed.md);
+`webhooks.read` to see, `webhooks.write` to change, test and resend):
+
+```
+GET                         /v1/webhook-events                   every event type, and which are sent yet
+GET    POST                 /v1/organizations/{org}/projects/{project}/webhooks
+GET    PUT    DELETE        …/webhooks/{id}
+GET                         …/webhooks/{id}/secret              shown on request, and audited
+       POST                 …/webhooks/{id}/secret/roll         the old one signs beside it for a day
+       POST                 …/webhooks/{id}/test                a made-up event, sent now
+GET                         …/webhooks/{id}/health              the last 24 hours, and tries by hour
+GET                         …/webhooks/{id}/deliveries[/{delivery}]
+       POST                 …/webhooks/{id}/deliveries/{delivery}/resend
+       POST                 …/webhooks/{id}/resend-failed       what it missed while it was down
+GET                         /v1/operator/webhooks                staff: the day, the backlog, the worst endpoints
+```
+
+An event is written to `webhook_outboxes` in the transaction of the change it describes, and the
+worker POSTs it to every endpoint that hears it, signed `v1=` HMAC-SHA256 of `timestamp.body`, with
+`X-PlayerSense-Id` the same on every try. A delivery that lands at its first try is never a
+PostgreSQL row; one that fails waits in `webhook_retries` for the schedule (1 and 5 minutes, half an
+hour, 2, 6 and 12 hours, a day twice), and an endpoint failing for three days is turned off and its
+owners emailed. Every try is logged to ClickHouse (`webhook_attempts`, with `webhook_deliveries`
+and `webhook_health_1h` built from it) for thirty days. One worker delivers about 28,000 a second
+to a local endpoint (`PLAYERSENSE_LOAD=10000 go test ./apps/backend/cmd/api -run Load`).
 
 **A project's settings**:
 

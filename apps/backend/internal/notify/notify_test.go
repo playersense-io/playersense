@@ -98,7 +98,7 @@ func TestEachTypeSendsItsOwnShape(t *testing.T) {
 	if !r.OK || headers.Get("X-Gateway") != "k" {
 		t.Fatalf("webhook %+v", r)
 	}
-	if err := signing.Verify(secret, headers.Get(signing.HeaderID), headers.Get(signing.HeaderTimestamp),
+	if err := signing.Verify(secret, headers.Get(signing.HeaderTimestamp),
 		headers.Get(signing.HeaderSignature), raw, time.Now()); err != nil {
 		t.Fatalf("the webhook's signature: %v", err)
 	}

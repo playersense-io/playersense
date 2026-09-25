@@ -28,59 +28,6 @@ import (
 
 // ---- documents -------------------------------------------------------------------------------
 
-// purchaseDoc is a recorded purchase as the API hands it over.
-func purchaseDoc(p *ent.VerifiedPurchase, duplicate bool) schemas.PurchaseDoc {
-	platform := stores.Platform(p.Platform)
-	status := "verified"
-	switch {
-	case p.Status == verifiedpurchase.StatusRefunded:
-		status = "refunded"
-	case p.Sandbox:
-		status = "sandbox"
-	}
-	env := "production"
-	if p.Sandbox {
-		env = "sandbox"
-	}
-	purchased, verified := p.PurchasedAt.UTC(), p.CreatedAt.UTC()
-	doc := schemas.PurchaseDoc{
-		ID: p.UID, Status: status, Duplicate: duplicate,
-		Player:  schemas.PurchasePlayer{ID: p.PlayerID, InstallID: p.InstallID},
-		Product: schemas.PurchaseProduct{ID: p.ProductID, Kind: string(p.Kind), Quantity: p.Quantity},
-		Price:   &schemas.PurchasePrice{AmountMicros: p.AmountMicros, Currency: p.Currency, FromStore: p.PriceFromStore},
-		Store: schemas.PurchaseStore{Name: platform.StoreName(), TransactionID: p.StoreTransactionID,
-			OriginalTransactionID: p.OriginalTransactionID, OrderID: p.OrderID, VerifiedInMs: p.VerifyMs},
-		Environment: env, Country: p.Country, First: p.FirstPurchase,
-		PurchasedAt: &purchased, VerifiedAt: &verified,
-	}
-	if p.RefundedAt != nil {
-		doc.Refund = &schemas.PurchaseRefund{At: p.RefundedAt.UTC(), Reason: p.RefundReason, Source: p.RefundSource}
-	}
-	return doc
-}
-
-// rejectedDoc is a receipt turned away.
-func rejectedDoc(req purchases.Request, res purchases.Result) schemas.PurchaseDoc {
-	doc := schemas.PurchaseDoc{
-		Status:      "rejected",
-		Player:      schemas.PurchasePlayer{ID: req.PlayerID, InstallID: req.InstallID},
-		Product:     schemas.PurchaseProduct{ID: req.Receipt.ProductID},
-		Store:       schemas.PurchaseStore{Name: req.Platform.StoreName()},
-		Environment: "production",
-		Rejection:   &schemas.PurchaseProblem{Code: string(res.Rejection.Code), Message: res.Rejection.Detail},
-	}
-	if t := res.Transaction; t != nil {
-		doc.Store.TransactionID = t.TransactionID
-		if t.ProductID != "" {
-			doc.Product.ID = t.ProductID
-		}
-		if t.Sandbox {
-			doc.Environment = "sandbox"
-		}
-	}
-	return doc
-}
-
 func traceOut(steps []stores.Step) []schemas.TraceStep {
 	out := make([]schemas.TraceStep, 0, len(steps))
 	for _, s := range steps {
@@ -138,7 +85,7 @@ func VerifyPurchase(ctx *muzak.Context, in schemas.VerifyPurchaseIn) (schemas.Pu
 	}
 	req := requestOf(in)
 	res, err := svc.Verify(ctx.Context(), purchases.Caller{ProjectID: int(tenant.ProjectSeq), ProjectUID: projectUID,
-		EnvironmentID: int(tenant.EnvironmentSeq), Via: tenant.KeyKind}, req)
+		EnvironmentID: int(tenant.EnvironmentSeq), Environment: tenant.Environment, Via: tenant.KeyKind}, req)
 	if err != nil {
 		if errors.As(err, new(*stores.Unavailable)) {
 			ctx.SetHeader(muzak.HeaderRetryAfter, "30")
@@ -146,9 +93,9 @@ func VerifyPurchase(ctx *muzak.Context, in schemas.VerifyPurchaseIn) (schemas.Pu
 		return schemas.PurchaseDoc{}, verifyFailed(err)
 	}
 	if res.Rejection != nil {
-		return rejectedDoc(req, res), nil
+		return purchases.RejectionDocument(req, res), nil
 	}
-	return purchaseDoc(res.Purchase, res.Duplicate), nil
+	return purchases.Document(res.Purchase, res.Duplicate), nil
 }
 
 // LookupPurchase reads a purchase by the store's transaction id: what a game server checks before
@@ -165,7 +112,7 @@ func LookupPurchase(ctx *muzak.Context, in schemas.PurchaseLookupParams) (schema
 	if p == nil {
 		return schemas.PurchaseDoc{}, muzak.NotFound("no verified purchase has that transaction id in this project")
 	}
-	return purchaseDoc(p, false), nil
+	return purchases.Document(p, false), nil
 }
 
 // PlayerPurchases lists one player's verified purchases, newest first.
@@ -181,7 +128,7 @@ func PlayerPurchases(ctx *muzak.Context, in schemas.PlayerPurchasesParams) (sche
 	}
 	out := schemas.PurchaseDocsOut{Purchases: make([]schemas.PurchaseDoc, 0, len(rows))}
 	for _, p := range rows {
-		out.Purchases = append(out.Purchases, purchaseDoc(p, false))
+		out.Purchases = append(out.Purchases, purchases.Document(p, false))
 	}
 	return out, nil
 }
@@ -691,7 +638,7 @@ func ReadVerifiedPurchase(ctx *muzak.Context, in schemas.VerifiedPurchaseParams)
 	if err != nil {
 		return schemas.VerifiedPurchaseOut{}, core.AsHTTPError(err)
 	}
-	out := schemas.VerifiedPurchaseOut{Purchase: purchaseDoc(p, false), Attempts: []schemas.PurchaseAttemptOut{}}
+	out := schemas.VerifiedPurchaseOut{Purchase: purchases.Document(p, false), Attempts: []schemas.PurchaseAttemptOut{}}
 	for _, a := range attempts {
 		out.Attempts = append(out.Attempts, attemptOut(a, map[int]uuid.UUID{p.ID: p.UID}, true))
 	}

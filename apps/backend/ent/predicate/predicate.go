@@ -146,3 +146,12 @@ type User func(*sql.Selector)
 
 // VerifiedPurchase is the predicate function for verifiedpurchase builders.
 type VerifiedPurchase func(*sql.Selector)
+
+// WebhookEndpoint is the predicate function for webhookendpoint builders.
+type WebhookEndpoint func(*sql.Selector)
+
+// WebhookOutbox is the predicate function for webhookoutbox builders.
+type WebhookOutbox func(*sql.Selector)
+
+// WebhookRetry is the predicate function for webhookretry builders.
+type WebhookRetry func(*sql.Selector)

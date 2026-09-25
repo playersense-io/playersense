@@ -20,6 +20,9 @@ import (
 	"playersense.dev/backend/ent/purchaseattempt"
 	"playersense.dev/backend/ent/purchaseprovider"
 	"playersense.dev/backend/ent/verifiedpurchase"
+	"playersense.dev/backend/ent/webhookendpoint"
+	"playersense.dev/backend/ent/webhookoutbox"
+	"playersense.dev/backend/ent/webhookretry"
 	"playersense.dev/backend/internal/core"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/valkey"
@@ -173,6 +176,19 @@ func (d *Deletion) close(ctx context.Context, p *ent.Project, now time.Time) err
 	// Its store credentials go with its keys: nothing verifies for a deleted project, and a
 	// secret with nothing to do is only a secret to leak.
 	if _, err := tx.PurchaseProvider.Delete().Where(purchaseprovider.ProjectID(p.ID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	// And its webhooks: nothing more is sent for a deleted project, including what was on its way.
+	if _, err := tx.WebhookRetry.Delete().Where(webhookretry.ProjectID(p.ID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if _, err := tx.WebhookOutbox.Delete().Where(webhookoutbox.ProjectID(p.ID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	if _, err := tx.WebhookEndpoint.Delete().Where(webhookendpoint.ProjectID(p.ID)).Exec(ctx); err != nil {
 		_ = tx.Rollback()
 		return err
 	}

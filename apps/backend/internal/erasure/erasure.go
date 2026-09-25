@@ -82,6 +82,7 @@ import (
 	"playersense.dev/backend/internal/subject"
 	"playersense.dev/backend/internal/tombstone"
 	"playersense.dev/backend/internal/valkey"
+	"playersense.dev/backend/internal/webhooks"
 )
 
 // Defaults for the knobs a deployment is unlikely to want to think about.
@@ -367,7 +368,27 @@ func (p *Purger) advance(
 			SetCompletedAt(now)
 		out.Completed = true
 	}
-	if _, err := update.Save(ctx); err != nil {
+	if out.Completed {
+		// The studio's own systems hear it once, when it is done: completed is the promise kept.
+		err = webhooks.WithEvent(ctx, p.DB.Client, req.ProjectUID, "player.deleted",
+			map[string]any{"player": map[string]any{"id": req.ActorKey}, "requested_at": req.CreatedAt.UTC(),
+				"completed_at": now.UTC()},
+			func(tx *ent.Tx) error {
+				_, err := tx.DataDeletionRequest.UpdateOne(req).
+					SetArchiveCursor(max(req.ArchiveCursor, redacted.Cursor)).
+					SetDevicesDeleted(req.DevicesDeleted + uint32(out.Devices)).
+					SetObjectsRedacted(req.ObjectsRedacted + uint32(out.Objects)).
+					SetPurchasesDeleted(req.PurchasesDeleted + uint32(out.Purchases)).
+					ClearFailureReason().
+					SetStatus(datadeletionrequest.StatusCompleted).
+					SetCompletedAt(now).
+					Save(ctx)
+				return err
+			})
+	} else {
+		_, err = update.Save(ctx)
+	}
+	if err != nil {
 		return out, fmt.Errorf("record the outcome: %w", err)
 	}
 

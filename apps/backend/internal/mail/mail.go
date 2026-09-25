@@ -37,6 +37,8 @@ type Kind string
 const (
 	Invitation   Kind = "invitation"
 	Notification Kind = "notification"
+	// WebhookDisabled tells owners a webhook endpoint was turned off after three days of failures.
+	WebhookDisabled Kind = "webhook_disabled"
 )
 
 // Message is one email.

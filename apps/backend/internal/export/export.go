@@ -44,6 +44,7 @@ import (
 	"playersense.dev/backend/internal/blobstore"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/subject"
+	"playersense.dev/backend/internal/webhooks"
 )
 
 // Defaults for the knobs a deployment is unlikely to want to think about.
@@ -166,10 +167,15 @@ func (e *Exporter) Run(ctx context.Context, now time.Time) (Result, error) {
 			out.Failed++
 			log.Error("an export failed",
 				"request", req.UID, "project_uid", req.ProjectUID, "error", err)
-			if markErr := e.DB.Client.DataExportRequest.UpdateOne(req).
-				SetStatus(dataexportrequest.StatusFailed).
-				SetFailureReason(pgdb.Reason(err.Error())).
-				Exec(ctx); markErr != nil {
+			if markErr := webhooks.WithEvent(ctx, e.DB.Client, req.ProjectUID, "export.failed",
+				map[string]any{"export": map[string]any{"id": req.UID, "player": map[string]any{"id": req.ActorKey},
+					"status": "failed", "error": pgdb.Reason(err.Error())}},
+				func(tx *ent.Tx) error {
+					return tx.DataExportRequest.UpdateOne(req).
+						SetStatus(dataexportrequest.StatusFailed).
+						SetFailureReason(pgdb.Reason(err.Error())).
+						Exec(ctx)
+				}); markErr != nil {
 				return out, fmt.Errorf("record the failure of %s: %w", req.UID, markErr)
 			}
 			continue
@@ -248,16 +254,23 @@ func (e *Exporter) fill(
 	}
 
 	expires := now.Add(e.ttl())
-	if err := e.DB.Client.DataExportRequest.UpdateOne(req).
-		SetStatus(dataexportrequest.StatusCompleted).
-		SetBucket(e.Store.Bucket()).
-		SetObjectPath(object.Path).
-		SetObjectSizeBytes(object.Size).
-		SetRowCount(b.counts.Events).
-		SetExpiresAt(expires).
-		SetCompletedAt(now).
-		ClearFailureReason().
-		Exec(ctx); err != nil {
+	// The event says it is ready and when it goes; the bundle itself is fetched through the API,
+	// which checks who is asking, never from a link in a webhook.
+	if err := webhooks.WithEvent(ctx, e.DB.Client, req.ProjectUID, "export.completed",
+		map[string]any{"export": map[string]any{"id": req.UID, "player": map[string]any{"id": req.ActorKey},
+			"status": "completed", "bytes": object.Size, "rows": b.counts.Events, "expires_at": expires.UTC()}},
+		func(tx *ent.Tx) error {
+			return tx.DataExportRequest.UpdateOne(req).
+				SetStatus(dataexportrequest.StatusCompleted).
+				SetBucket(e.Store.Bucket()).
+				SetObjectPath(object.Path).
+				SetObjectSizeBytes(object.Size).
+				SetRowCount(b.counts.Events).
+				SetExpiresAt(expires).
+				SetCompletedAt(now).
+				ClearFailureReason().
+				Exec(ctx)
+		}); err != nil {
 		return 0, 0, fmt.Errorf("record the bundle: %w", err)
 	}
 

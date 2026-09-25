@@ -32,6 +32,7 @@ import (
 	"playersense.dev/backend/ent/verifiedpurchase"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/stores"
+	"playersense.dev/backend/internal/webhooks"
 )
 
 // Service verifies purchases and records what the stores say about them.
@@ -53,6 +54,9 @@ type Caller struct {
 	ProjectID     int
 	ProjectUID    uuid.UUID
 	EnvironmentID int
+	// Environment is the key's environment, production, staging or development: where the
+	// purchase's webhook events come from.
+	Environment string
 	// Via is the key class, "project" or "server", or "debug" for staff checking a receipt, which
 	// records nothing but the attempt.
 	Via string
@@ -269,8 +273,13 @@ func (s *Service) saveRejection(ctx context.Context, attempt *attemptRow, res *R
 			return err
 		}
 		res.Attempt = saved
-		return tx.PurchaseChange.Create().SetAttemptID(saved.ID).SetKind(purchasechange.KindRejection).
-			SetAt(saved.CreatedAt).Exec(ctx)
+		if err := tx.PurchaseChange.Create().SetAttemptID(saved.ID).SetKind(purchasechange.KindRejection).
+			SetAt(saved.CreatedAt).Exec(ctx); err != nil {
+			return err
+		}
+		return webhooks.Emit(ctx, tx.Client(), webhooks.Event{ProjectID: attempt.caller.ProjectID,
+			ProjectUID: attempt.caller.ProjectUID, Environment: attempt.caller.Environment, Type: "purchase.rejected",
+			Data: map[string]any{"purchase": RejectionDocument(attempt.req, *res)}, At: saved.CreatedAt})
 	})
 }
 
@@ -324,7 +333,11 @@ func (s *Service) record(ctx context.Context, c Caller, req Request, t stores.Tr
 			}
 		}
 		created = p
-		return nil
+		// The purchase and its event are one transaction: the game's server hears of exactly the
+		// purchases that were recorded, once each.
+		return webhooks.Emit(ctx, tx.Client(), webhooks.Event{ProjectID: c.ProjectID, ProjectUID: c.ProjectUID,
+			Environment: c.Environment, Type: "purchase.verified",
+			Data: map[string]any{"purchase": Document(p, false)}, At: p.CreatedAt})
 	})
 	if ent.IsConstraintError(err) {
 		// Another request recorded it first: theirs is the purchase.

@@ -491,7 +491,16 @@ func transition(ctx *muzak.Context, id schemas.ExperimentIDParams,
 			}
 			return nil, core.AsHTTPError(err)
 		}
-		return updated, auditFor(ctx).record(ctx.Context(), tx, action, "experiment", row.UID.String(), meta)
+		if err := auditFor(ctx).record(ctx.Context(), tx, action, "experiment", row.UID.String(), meta); err != nil {
+			return nil, err
+		}
+		switch action {
+		case audit.ExperimentStarted:
+			return updated, emit(ctx, tx, "", "experiment.started", map[string]any{"experiment": experimentEvent(updated)})
+		case audit.ExperimentConcluded:
+			return updated, emit(ctx, tx, "", "experiment.concluded", map[string]any{"experiment": experimentEvent(updated)})
+		}
+		return updated, nil
 	})
 	if err != nil {
 		return schemas.ExperimentRecordOut{}, err
@@ -644,4 +653,24 @@ func valueText(value any) string {
 		encoded, _ := json.Marshal(v)
 		return string(encoded)
 	}
+}
+
+// experimentEvent is an experiment as its webhook events carry it.
+func experimentEvent(row *ent.Experiment) map[string]any {
+	out := map[string]any{"id": row.UID, "name": row.Name, "flag": row.FlagKey, "traffic": row.Traffic,
+		"status": string(row.Status), "started_at": row.StartedAt, "ended_at": row.EndedAt}
+	if arms, err := armsOf(row); err == nil {
+		ids := make([]string, len(arms))
+		for i, a := range arms {
+			ids[i] = a.ID
+		}
+		out["arms"] = ids
+	}
+	if row.Winner != nil {
+		out["winner"] = *row.Winner
+	}
+	if row.Conclusion != "" {
+		out["conclusion"] = row.Conclusion
+	}
+	return out
 }

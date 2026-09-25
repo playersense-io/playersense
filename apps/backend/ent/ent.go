@@ -59,6 +59,9 @@ import (
 	"playersense.dev/backend/ent/usagedaily"
 	"playersense.dev/backend/ent/user"
 	"playersense.dev/backend/ent/verifiedpurchase"
+	"playersense.dev/backend/ent/webhookendpoint"
+	"playersense.dev/backend/ent/webhookoutbox"
+	"playersense.dev/backend/ent/webhookretry"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -166,6 +169,9 @@ func checkColumn(t, c string) error {
 			usagedaily.Table:          usagedaily.ValidColumn,
 			user.Table:                user.ValidColumn,
 			verifiedpurchase.Table:    verifiedpurchase.ValidColumn,
+			webhookendpoint.Table:     webhookendpoint.ValidColumn,
+			webhookoutbox.Table:       webhookoutbox.ValidColumn,
+			webhookretry.Table:        webhookretry.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -263,9 +263,9 @@ func TestEveryPermissionIsClassified(t *testing.T) {
 			reads++
 		}
 	}
-	// org, member, billing, audit, key, analytics, player, liveops, privacy, reports.
-	if reads != 10 {
-		t.Errorf("%d permissions are reads, want 10 — a namespace has gained or lost one "+
+	// org, member, billing, audit, key, analytics, player, liveops, privacy, reports, webhooks.
+	if reads != 11 {
+		t.Errorf("%d permissions are reads, want 11: a namespace has gained or lost one "+
 			"and the read/write split needs a look", reads)
 	}
 }

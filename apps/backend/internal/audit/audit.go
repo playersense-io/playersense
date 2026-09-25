@@ -107,6 +107,13 @@ const (
 	StoreDisconnected Action = "store.disconnect"
 	StoreURLRotated   Action = "store.rotate_url"
 
+	// A webhook endpoint: made or changed, deleted, its signing secret rolled, and its secret
+	// shown to somebody.
+	WebhookWritten      Action = "webhook.write"
+	WebhookDeleted      Action = "webhook.delete"
+	WebhookSecretRolled Action = "webhook.secret_roll"
+	WebhookSecretShown  Action = "webhook.secret_read"
+
 	CreditGranted  Action = "credit.grant"
 	CreditCharged  Action = "credit.charge"
 	AutoTopUpSet   Action = "billing.auto_topup"

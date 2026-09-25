@@ -70,8 +70,10 @@ func Templates() []Template {
 				LiveOpsRead, LiveOpsWrite,
 				AnalyticsRead, PlayerRead,
 				ReportsRead, ReportsWrite,
-				// Connecting the stores is integration work, like the keys.
+				// Connecting the stores is integration work, like the keys, and so are the
+				// endpoints a studio's own backend listens on.
 				PurchasesConfigure,
+				WebhooksRead, WebhooksWrite,
 			},
 		},
 		{

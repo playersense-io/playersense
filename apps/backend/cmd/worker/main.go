@@ -73,6 +73,7 @@ import (
 	"playersense.dev/backend/internal/scheduler"
 	"playersense.dev/backend/internal/stores"
 	"playersense.dev/backend/internal/valkey"
+	"playersense.dev/backend/internal/webhooks"
 )
 
 func main() {
@@ -146,6 +147,19 @@ func once(settings config.Settings) error {
 	}
 	_, reportErr := reportsDue.Run(ctx, time.Now().UTC())
 	shipper, upkeep := newPurchaseLoops(conn, deps)
+	hookLog, dispatcher, err := newWebhookLoops(settings, conn, deps)
+	if err != nil {
+		return err
+	}
+	var hookErr error
+	for {
+		n, err := dispatcher.Pass(ctx)
+		if err != nil || n == 0 {
+			hookErr = err
+			break
+		}
+	}
+	hookErr = errors.Join(hookErr, hookLog.Flush(ctx))
 	var shipErr error
 	for {
 		n, err := shipper.Ship(ctx)
@@ -154,7 +168,7 @@ func once(settings config.Settings) error {
 			break
 		}
 	}
-	return errors.Join(sched.Run(ctx), janitor.Run(ctx), reportErr, shipErr, upkeep.Run(ctx, time.Now().UTC()))
+	return errors.Join(sched.Run(ctx), janitor.Run(ctx), reportErr, shipErr, upkeep.Run(ctx, time.Now().UTC()), hookErr)
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
@@ -179,6 +193,10 @@ func build(settings config.Settings) (*muzak.App, error) {
 		return nil, err
 	}
 	shipper, upkeep := newPurchaseLoops(conn, deps)
+	hookLog, dispatcher, err := newWebhookLoops(settings, conn, deps)
+	if err != nil {
+		return nil, err
+	}
 
 	app := muzak.New(muzak.AppOptions{
 		Title:   "PlayerSense Worker",
@@ -212,6 +230,10 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(reportsDue),
 		muzak.WithSingleton(shipper),
 		muzak.WithSingleton(upkeep),
+		// The log before the dispatcher, so the dispatcher stops first and the log's last flush
+		// holds every try it made.
+		muzak.WithSingleton(hookLog),
+		muzak.WithSingleton(dispatcher),
 	)
 
 	app.Include(routers.Meta())
@@ -313,6 +335,18 @@ func newPurchaseLoops(conn *chdb.Conn, deps dependencies) (*purchases.Shipper, *
 	shipper := &purchases.Shipper{DB: deps.db, ClickHouse: conn}
 	svc := &purchases.Service{DB: deps.db, Stores: stores.Live(nil)}
 	return shipper, &purchases.Upkeep{Service: svc, Shipper: shipper}
+}
+
+// newWebhookLoops delivers webhooks: the dispatcher takes events and due retries, and the log
+// writes every try to ClickHouse a second at a time.
+func newWebhookLoops(settings config.Settings, conn *chdb.Conn, deps dependencies) (*webhooks.AttemptLog, *webhooks.Dispatcher, error) {
+	mailer, err := mail.New(settings.MailSender, nil, settings.MailLogBody)
+	if err != nil {
+		return nil, nil, err
+	}
+	hookLog := &webhooks.AttemptLog{CH: conn}
+	return hookLog, &webhooks.Dispatcher{DB: deps.db, Deliver: webhooks.NewDeliverer(settings.NotifyAllowPrivate),
+		Log: hookLog, Mail: mailer, Dashboard: settings.DashboardURL}, nil
 }
 
 // newJanitor assembles §79's data-lifecycle jobs.
