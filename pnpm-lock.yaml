@@ -59,6 +59,9 @@ importers:
 
   apps/client:
     dependencies:
+      '@iconify-json/logos':
+        specifier: ^1.2.14
+        version: 1.2.14
       '@pinia/nuxt':
         specifier: ^1.0.2
         version: 1.0.2(magic-string@1.4.1)(magicast@0.5.5)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.43(typescript@6.0.3)))(rolldown@1.2.9)(unplugin@3.4.0(esbuild@0.28.2)(rolldown@1.2.9)(rollup@4.63.4)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)))
@@ -1115,6 +1118,9 @@ packages:
 
   '@iconify-json/circle-flags@1.2.11':
     resolution: {integrity: sha512-vrx2btOkTQ4/P75ElEDnjXShmNTwInXuhhpIQQ6U6YUTdxfWyvm/4ijNG8FX8iWFr+sqqQRCvXpm2RfRtjVXfg==}
+
+  '@iconify-json/logos@1.2.14':
+    resolution: {integrity: sha512-O36DicXkgAMT6NAsH7MTWlOql8NktHz9fBCItTjz6L/9gyRXw4vQj6qTeVgww5UZWiVugUV1MhVFA/g9HWIkBw==}
 
   '@iconify-json/lucide@1.2.134':
     resolution: {integrity: sha512-MXzwT7H8Ii/aGN6NLtMbMLDaxLYsOxCKEdW0F5h3MemNUaUBqAxr9nz0mPlXzozd/piQyrdSiUyk0t5b5ErADg==}
@@ -7019,6 +7025,10 @@ snapshots:
   '@humanwhocodes/retry@0.4.3': {}
 
   '@iconify-json/circle-flags@1.2.11':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/logos@1.2.14':
     dependencies:
       '@iconify/types': 2.0.0
 

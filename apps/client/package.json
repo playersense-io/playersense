@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/logos": "^1.2.14",
     "@pinia/nuxt": "^1.0.2",
     "@playersense/contracts": "workspace:*",
     "@playersense/dashboard": "workspace:*",

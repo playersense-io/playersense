@@ -25,8 +25,6 @@ export const POLICY_TIERS: Record<PolicyTier, { label: string, note: string, cap
 export const RETENTION_TIERS = [7, 30, 90, 180, 365] as const
 export type RetentionDays = typeof RETENTION_TIERS[number]
 
-export type EnvironmentKind = 'development' | 'staging' | 'production'
-
 export const ENVIRONMENT_KINDS: Record<EnvironmentKind, { label: string, tone: string }> = {
   development: { label: 'Development', tone: 'chart-4' },
   staging: { label: 'Staging', tone: 'chart-3' },

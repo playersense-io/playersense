@@ -63,8 +63,6 @@ export interface SegmentDef {
 /** The part of a flag a published document carries. Its name and tags are not in it. */
 export type FlagDocument = Pick<FlagDef, 'key' | 'kind' | 'fallback' | 'rules' | 'rollout' | 'salt'>
 
-export type EnvironmentKind = 'development' | 'staging' | 'production'
-
 export const ENVIRONMENTS: readonly EnvironmentKind[] = ['development', 'staging', 'production']
 
 export const ENVIRONMENT_LABELS: Record<EnvironmentKind, string> = {
