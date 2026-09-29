@@ -153,11 +153,12 @@ func Invitations() *muzak.Router {
 		muzak.Summary("List invitations waiting for you"),
 		muzak.Description("Matched on the address your sign-in verified, so it shows only what "+
 			"was sent to your own inbox. It carries no token and does not need to: accepting "+
-			"one of these names the organization instead."),
-		// No permission and no verification. Reading what was sent to your own verified
-		// address changes nothing, and an unverified account being able to see that it was
-		// invited is how it learns which link to look for.
-		muzak.Needs(core.ResolveUser))
+			"one of these names the organization instead."))
+	// No permission and no verification, and no provider of its own: the subtree already
+	// resolves the signed-in person, and a second declaration of the same provider runs it
+	// twice. Reading what was sent to your own verified address changes nothing, and an
+	// unverified account being able to see that it was invited is how it learns which link
+	// to look for.
 
 	r.Post("/invitations/accept", handlers.AcceptInvitation,
 		muzak.Summary("Accept an invitation"),

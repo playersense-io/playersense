@@ -79,20 +79,19 @@ func Projects() *muzak.Router {
 	r.Get("/organizations/{org}/projects", handlers.ListProjects,
 		muzak.Summary("List the projects you can see"),
 		muzak.Description("An organization's projects, filtered to the ones this member has "+
-			"been given access to."),
-		// No permission, for the same reason ReadProject has none: whether you can see a
-		// project is the access list, not a privilege. Requiring one here would mean a
-		// role that grants nothing about projects could still hide the list, which is two
-		// mechanisms answering one question.
-		muzak.Needs(core.ResolveUser))
+			"been given access to."))
+	// No permission, for the same reason ReadProject has none: whether you can see a
+	// project is the access list, not a privilege. Requiring one here would mean a
+	// role that grants nothing about projects could still hide the list, which is two
+	// mechanisms answering one question. No provider either: the subtree already resolves
+	// the signed-in person, and declaring it again runs it twice.
 
 	r.Get("/organizations/{org}/projects/{project}", handlers.ReadProject,
-		muzak.Summary("Read a project"),
-		// Deliberately no permission of its own: whether you can see a project is the
-		// access list, not a privilege, and two mechanisms for one question is how a
-		// permission system becomes incomprehensible. ResolveUser answers 404 for a
-		// project outside the member's access.
-		muzak.Needs(core.ResolveUser))
+		muzak.Summary("Read a project"))
+	// Deliberately no permission of its own: whether you can see a project is the
+	// access list, not a privilege, and two mechanisms for one question is how a
+	// permission system becomes incomprehensible. ResolveUser, declared once for the
+	// subtree, answers 404 for a project outside the member's access.
 
 	r.Patch("/organizations/{org}/projects/{project}", handlers.UpdateProject,
 		muzak.Summary("Rename a project"),
@@ -126,7 +125,6 @@ func Projects() *muzak.Router {
 		muzak.Summary("Where a project's events come from"),
 		muzak.Description("Each platform and SDK, when first and last seen, how many events, and the "+
 			"newest build and SDK version, across every environment."),
-		muzak.Needs(core.ResolveUser),
 		muzak.WithResponseDoc(http.StatusServiceUnavailable, "The facts could not be read"))
 
 	return r
