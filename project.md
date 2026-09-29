@@ -4235,6 +4235,12 @@ isolating a customer means rebuilding the registry and the routing first
 symptom to watch for — a customer large enough to want their own stack is also a customer
 large enough to pay for rebuilding it.
 
+The customer who wants more than isolation, who will not have their game data on
+PlayerSense's infrastructure at all, does not need the registry rebuilt either. The proposal
+in [ADR 0052](docs/adr/0052-a-customer-hosted-deployment-is-a-whole-instance.md) is to run the
+whole stack as one instance in their own cloud account, with only a license and a signed
+count of tracked players reaching PlayerSense. Proposed, not built.
+
 ---
 
 # Part XXVI — Testing and benchmarking
