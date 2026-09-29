@@ -451,6 +451,61 @@ charge, 3 a day), refunds and disputes taken back, and an invoice for every top-
 
 ---
 
+## 5b. Customer-hosted deployment (ADR 0052, Proposed)
+
+Big studios will not send game data to a third party. The plan is to run the whole stack as a
+single-tenant instance in the customer's AWS, GCP or Azure account, with only a license and a
+signed usage count crossing to PlayerSense. **Do not start before one studio has signed a pilot.**
+About 6 to 8 weeks to a first AWS instance, mostly review and testing.
+
+### Phase 1: package it
+
+- [ ] Dockerfiles for `api`, `worker`, `analytics-writer`, `archive-writer`, `billing-writer`,
+      `migrate` and `client`, plus a `.dockerignore`. None exist today.
+- [ ] An S3 `blobstore` next to `local` and `gcs`, and ClickHouse's cold tier on an S3-compatible
+      disk (`infra/stage1/compose/docker-compose.cold-object.yml` does it for GCS).
+- [ ] Run the local event bus on a single node (`EVENT_BUS=local`), and replace the Cloud Monitoring
+      backlog metric in `internal/eventbus/backlog.go` with one that works without GCP.
+- [ ] Terraform for one AWS VM that runs the compose stack, created and destroyed on demand
+      (a small VM is about $30 to $60 a month; destroy it when not testing).
+- [ ] A BYOC setting, off by default, that turns off Stripe, the wallet, top-ups and suspension.
+- [ ] Remove the leftover `eu-1` host names from the SDK defaults
+      (`sdk/unity/.../PlayerSenseOptions.cs`, `sdk/core/src/lib.rs`); the two Unity defaults disagree.
+
+### Phase 2: make it sellable
+
+- [ ] OIDC/SSO in place of Firebase, which is one vendor-global project.
+- [ ] Real email: SMTP or SES. `MAIL_SENDER=log` is the only sender, so invitations and billing
+      notices go nowhere. Needed by the hosted product too.
+- [ ] License file, checked by the instance, and server-side feature gating. `billing.HasFeature`
+      has no callers today, so priority support, the report builder and MCP access are not gated
+      (see the "Enterprise features" item in section 4).
+- [ ] A signed monthly usage report (tracked players, from `billable_player`) and the invoice
+      it feeds, through the contracted-account path (ADR 0045).
+- [ ] Backup and restore, and an upgrade and rollback runbook. Ent auto-migrates forward only.
+- [ ] Support access the customer grants and can revoke; the operator console cannot see an instance.
+- [ ] A test that fails when the instance calls anything except the license and usage endpoints.
+- [ ] The offline mode: an offline license and usage reported by hand each quarter, priced higher.
+
+### Phase 3: only when a customer asks
+
+- [ ] High availability on Kubernetes; an SQS or Kafka bus.
+- [ ] Azure and GCP variants (GCP is the closest, since the code already assumes it).
+
+### Not doing, on purpose
+
+- [ ] ~~SOC 2, ISO 27001, a paid pen test, paid legal review~~: if a studio asks, the answer is that
+      PlayerSense cannot yet cover the cost. An audit becomes a funded milestone in that studio's
+      contract. Use free contract templates, CI scanners, an SBOM and signed images meanwhile.
+
+### Found while reading the code
+
+- [ ] The Enterprise price disagrees: ADR 0042 says $99 and $999, the README says $199 and $1,990.
+- [ ] `docs/rate-limits.md` still names `ingest-api` and `control-api`, which ADR 0038 removed.
+- [ ] The admin console's `settings/staff-access.vue` says the backend table does not exist; it does.
+
+---
+
 ## 6. Decisions made, so they don't get relitigated per-PR
 
 - [x] **Component library: Vuetify 4 + Tailwind 4 for the dashboards, Nuxt UI for landing.**
