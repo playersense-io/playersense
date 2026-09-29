@@ -4530,7 +4530,7 @@ export interface components {
              * @enum {string}
              */
             readonly bucket?: "playtime" | "spend";
-            readonly cohort: components["schemas"]["CohortRange"];
+            readonly cohort?: components["schemas"]["CohortRange"];
             /** @description Not accepted; scope comes from the key */
             readonly environment_id?: string;
             /** @description The event, for metric=event */
@@ -4618,11 +4618,11 @@ export interface components {
             readonly experiment: string;
         };
         readonly ConfigIn: {
-            readonly app: components["schemas"]["App"];
+            readonly app?: components["schemas"]["App"];
             readonly context?: {
                 readonly [key: string]: unknown;
             };
-            readonly device: components["schemas"]["Device"];
+            readonly device?: components["schemas"]["Device"];
             /** @enum {string} */
             readonly environment?: "development" | "staging" | "production";
             /** Format: uuid */
@@ -4630,7 +4630,7 @@ export interface components {
             readonly player_id?: string;
             /** Format: int64 */
             readonly schema_version: number;
-            readonly sdk: components["schemas"]["SDK"];
+            readonly sdk?: components["schemas"]["SDK"];
         };
         readonly ConfigResponse: {
             readonly experiments?: {
@@ -5625,15 +5625,15 @@ export interface components {
             readonly expected: readonly number[];
         };
         readonly IngestBatchIn: {
-            readonly app: components["schemas"]["App"];
+            readonly app?: components["schemas"]["App"];
             /**
              * Format: uuid
              * @description Stable across retries, so a redelivery is recognisable
              */
             readonly batch_id: string;
-            readonly consent: components["schemas"]["Consent"];
+            readonly consent?: components["schemas"]["Consent"];
             readonly context?: readonly components["schemas"]["ContextFrame"][];
-            readonly device: components["schemas"]["Device"];
+            readonly device?: components["schemas"]["Device"];
             /**
              * @description development, staging or production
              * @enum {string}
@@ -5650,17 +5650,17 @@ export interface components {
              * @description The envelope version; currently 1
              */
             readonly schema_version: number;
-            readonly sdk: components["schemas"]["SDK"];
+            readonly sdk?: components["schemas"]["SDK"];
         };
         readonly IngestLogsIn: {
-            readonly app: components["schemas"]["App"];
+            readonly app?: components["schemas"]["App"];
             /**
              * Format: uuid
              * @description Stable across retries, so a redelivery is recognisable
              */
             readonly batch_id: string;
-            readonly consent: components["schemas"]["Consent"];
-            readonly device: components["schemas"]["LogDevice"];
+            readonly consent?: components["schemas"]["Consent"];
+            readonly device?: components["schemas"]["LogDevice"];
             /**
              * @description development, staging or production
              * @enum {string}
@@ -5677,7 +5677,7 @@ export interface components {
              * @description The envelope version; currently 1
              */
             readonly schema_version: number;
-            readonly sdk: components["schemas"]["SDK"];
+            readonly sdk?: components["schemas"]["SDK"];
         };
         readonly IngestionBucketOut: {
             /** Format: date-time */
@@ -6479,7 +6479,7 @@ export interface components {
             /** @description Only on minute and hour intervals */
             readonly event_name?: string;
             readonly filters?: readonly components["schemas"]["Filter"][];
-            readonly from: string;
+            readonly from?: string;
             /** @description At most one dimension; event_name on minute and hour intervals */
             readonly group_by?: readonly string[];
             /**
@@ -6496,7 +6496,7 @@ export interface components {
             readonly org_id?: string;
             /** @description Not accepted; scope comes from the key */
             readonly project_id?: string;
-            readonly to: string;
+            readonly to?: string;
         };
         readonly MetricResult: {
             readonly approximate: boolean;
@@ -8061,12 +8061,13 @@ export interface components {
         };
         readonly ScheduleIn: {
             /** Format: date-time */
-            readonly anchor: string;
+            readonly anchor?: string;
             /** @description A Go duration: 2h, 30m, 120h */
             readonly duration: string;
             /** Format: int64 */
             readonly interval?: number;
-            readonly mode: string;
+            /** @enum {string} */
+            readonly mode: "once" | "hourly" | "daily" | "weekly" | "monthly" | "yearly";
             readonly timezone?: string;
             /** Format: date-time */
             readonly until?: string | null;
@@ -12180,7 +12181,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly VerifyPurchaseIn: components["schemas"]["VerifyPurchaseIn"];
+                    readonly VerifyPurchaseIn?: components["schemas"]["VerifyPurchaseIn"];
                 };
             };
         };
@@ -13957,7 +13958,7 @@ export interface operations {
                      * @description Absent leaves the stored value alone
                      */
                     readonly amount_micros?: number | null;
-                    readonly enabled: boolean;
+                    readonly enabled?: boolean;
                     /**
                      * Format: int64
                      * @description Absent leaves the stored value alone
@@ -15529,7 +15530,7 @@ export interface operations {
             readonly content: {
                 readonly "application/json": {
                     /** @description Required. true grants every project, now and later */
-                    readonly all_projects: boolean | null;
+                    readonly all_projects: boolean;
                     /** @description Project slugs. Ignored when all_projects is true */
                     readonly projects?: readonly string[];
                 };
@@ -15937,7 +15938,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                    readonly NotificationRuleBody?: components["schemas"]["NotificationRuleBody"];
                 };
             };
         };
@@ -16097,7 +16098,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                    readonly NotificationRuleBody?: components["schemas"]["NotificationRuleBody"];
                 };
             };
         };
@@ -16681,7 +16682,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly CohortQueryIn: components["schemas"]["CohortQueryIn"];
+                    readonly CohortQueryIn?: components["schemas"]["CohortQueryIn"];
                 };
             };
         };
@@ -17356,7 +17357,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly FunnelDefinition: components["schemas"]["FunnelDefinition"];
+                    readonly FunnelDefinition?: components["schemas"]["FunnelDefinition"];
                     /** @description YYYY-MM-DD; players entering from this day */
                     readonly from: string;
                     /** @description YYYY-MM-DD; players entering up to this day */
@@ -17529,7 +17530,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly MetricQueryIn: components["schemas"]["MetricQueryIn"];
+                    readonly MetricQueryIn?: components["schemas"]["MetricQueryIn"];
                 };
             };
         };
@@ -18462,7 +18463,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly config: components["schemas"]["ChannelConfigIn"];
+                    readonly config?: components["schemas"]["ChannelConfigIn"];
                     readonly name: string;
                     /**
                      * @description email, slack, discord, teams, pagerduty or webhook
@@ -18714,7 +18715,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly config: components["schemas"]["ChannelConfigIn"];
+                    readonly config?: components["schemas"]["ChannelConfigIn"];
                     /** @enum {string} */
                     readonly type: "email" | "slack" | "discord" | "teams" | "pagerduty" | "webhook";
                 };
@@ -18878,7 +18879,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly config: components["schemas"]["ChannelConfigIn"];
+                    readonly config?: components["schemas"]["ChannelConfigIn"];
                     readonly enabled?: boolean | null;
                     readonly name: string;
                 };
@@ -20055,7 +20056,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly ExperimentIn: components["schemas"]["ExperimentIn"];
+                    readonly ExperimentIn?: components["schemas"]["ExperimentIn"];
                     /** @description The flag it runs on. Cannot be changed afterwards */
                     readonly flag: string;
                 };
@@ -20228,7 +20229,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly ExperimentIn: components["schemas"]["ExperimentIn"];
+                    readonly ExperimentIn?: components["schemas"]["ExperimentIn"];
                 };
             };
         };
@@ -20945,13 +20946,13 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly FlagLabels: components["schemas"]["FlagLabels"];
+                    readonly FlagLabels?: components["schemas"]["FlagLabels"];
                     readonly description?: string;
                     /**
                      * Format: byte
                      * @description Required: a flag with no answer makes the game depend on the network
                      */
-                    readonly fallback: string;
+                    readonly fallback?: string;
                     /** @description What the game reads. Cannot be changed afterwards */
                     readonly key: string;
                     /**
@@ -21140,12 +21141,12 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly FlagLabels: components["schemas"]["FlagLabels"];
+                    readonly FlagLabels?: components["schemas"]["FlagLabels"];
                     /** @description Absent leaves it as it is; false un-archives */
                     readonly archived?: boolean | null;
                     readonly description?: string;
                     /** Format: byte */
-                    readonly fallback: string;
+                    readonly fallback?: string;
                     readonly name: string;
                     /** Format: int64 */
                     readonly rollout?: number | null;
@@ -21402,7 +21403,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly FunnelDefinition: components["schemas"]["FunnelDefinition"];
+                    readonly FunnelDefinition?: components["schemas"]["FunnelDefinition"];
                     readonly description?: string;
                     readonly name: string;
                 };
@@ -21575,7 +21576,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly FunnelDefinition: components["schemas"]["FunnelDefinition"];
+                    readonly FunnelDefinition?: components["schemas"]["FunnelDefinition"];
                     readonly description?: string;
                     readonly name: string;
                 };
@@ -22264,7 +22265,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly EventIntent: components["schemas"]["EventIntent"];
+                    readonly EventIntent?: components["schemas"]["EventIntent"];
                     /**
                      * Format: byte
                      * @description Absent means every player
@@ -22279,13 +22280,13 @@ export interface operations {
                      * Format: byte
                      * @description Whatever the game needs. PlayerSense does not read it
                      */
-                    readonly payload: string;
+                    readonly payload?: string;
                     /** Format: int64 */
                     readonly priority?: number;
                     /** Format: int64 */
                     readonly rollout?: number | null;
                     readonly salt?: string;
-                    readonly schedule: components["schemas"]["ScheduleIn"];
+                    readonly schedule?: components["schemas"]["ScheduleIn"];
                     /**
                      * @description draft, active, paused or archived. Defaults to draft
                      * @default draft
@@ -22465,19 +22466,19 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly EventIntent: components["schemas"]["EventIntent"];
+                    readonly EventIntent?: components["schemas"]["EventIntent"];
                     /** Format: byte */
                     readonly audience?: string;
                     readonly kind: string;
                     readonly name: string;
                     /** Format: byte */
-                    readonly payload: string;
+                    readonly payload?: string;
                     /** Format: int64 */
                     readonly priority?: number;
                     /** Format: int64 */
                     readonly rollout?: number | null;
                     readonly salt?: string;
-                    readonly schedule: components["schemas"]["ScheduleIn"];
+                    readonly schedule?: components["schemas"]["ScheduleIn"];
                     /**
                      * @default draft
                      * @enum {string}
@@ -23591,7 +23592,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                    readonly NotificationRuleBody?: components["schemas"]["NotificationRuleBody"];
                 };
             };
         };
@@ -23754,7 +23755,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly NotificationRuleBody: components["schemas"]["NotificationRuleBody"];
+                    readonly NotificationRuleBody?: components["schemas"]["NotificationRuleBody"];
                 };
             };
         };
@@ -24518,7 +24519,7 @@ export interface operations {
                      * Format: byte
                      * @description {nodes, edges}, as the report builder saves it
                      */
-                    readonly graph: string;
+                    readonly graph?: string;
                     readonly name: string;
                 };
             };
@@ -24605,7 +24606,7 @@ export interface operations {
                     /** @enum {string} */
                     readonly environment?: "" | "development" | "staging" | "production";
                     /** Format: byte */
-                    readonly graph: string;
+                    readonly graph?: string;
                     /** @description Filled into a Notify's {{report}} */
                     readonly name?: string;
                 };
@@ -24773,7 +24774,7 @@ export interface operations {
                     /** @enum {string} */
                     readonly environment?: "" | "development" | "staging" | "production";
                     /** Format: byte */
-                    readonly graph: string;
+                    readonly graph?: string;
                     readonly name: string;
                 };
             };
@@ -25600,7 +25601,7 @@ export interface operations {
                      * Format: byte
                      * @description The audience. An empty rule matches every player
                      */
-                    readonly rule: string;
+                    readonly rule?: string;
                 };
             };
         };
@@ -25779,7 +25780,7 @@ export interface operations {
                     readonly description?: string;
                     readonly name: string;
                     /** Format: byte */
-                    readonly rule: string;
+                    readonly rule?: string;
                 };
             };
         };
@@ -26525,7 +26526,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly WebhookBody: components["schemas"]["WebhookBody"];
+                    readonly WebhookBody?: components["schemas"]["WebhookBody"];
                 };
             };
         };
@@ -26687,7 +26688,7 @@ export interface operations {
         readonly requestBody: {
             readonly content: {
                 readonly "application/json": {
-                    readonly WebhookBody: components["schemas"]["WebhookBody"];
+                    readonly WebhookBody?: components["schemas"]["WebhookBody"];
                 };
             };
         };
@@ -27595,7 +27596,7 @@ export interface operations {
             readonly content: {
                 readonly "application/json": {
                     /** @description Percent of gross each store keeps, 0 to 100; null for the usual rate */
-                    readonly store_fees: {
+                    readonly store_fees?: {
                         readonly [key: string]: number;
                     };
                 };
@@ -28382,6 +28383,15 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description The server is shutting down or is serving as many event streams as it allows, overall or for this client. The Retry-After header says when to try again. */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description An unexpected error occurred. */
             readonly default: {
                 headers: {
@@ -28476,7 +28486,7 @@ export interface operations {
                      * Format: byte
                      * @description The Pub/Sub message; its data is the notification
                      */
-                    readonly message: string;
+                    readonly message?: string;
                     readonly subscription?: string;
                 };
             };
