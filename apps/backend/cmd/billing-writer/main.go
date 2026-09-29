@@ -29,6 +29,7 @@ import (
 	"playersense.dev/backend/internal/payments"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/staffnotify"
 	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/valkey"
 )
@@ -46,6 +47,13 @@ func main() {
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
+	// PlayerSense's own Slack: what this process logs at ERROR. First, because it replaces the
+	// default logger and everything below is handed the default.
+	staffAlerts, staffLogger, err := staffnotify.ForProcess(settings, "billing-writer", muzak.LoggerOptions{Format: logFormat(settings.LogFormat)})
+	if err != nil {
+		return nil, err
+	}
+
 	// Refused at start-up rather than defaulted. A digest under a guessable key is one anybody
 	// holding the table can join back to the events, and a key that changes between restarts
 	// makes every player of the month new again — so there is no safe default to fall back on.
@@ -100,6 +108,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		Addr:            settings.BillingWriterAddr,
 		ShutdownTimeout: settings.ShutdownTimeout,
 
+		Logger:        staffLogger, // nil unless STAFF_SLACK_ALERTS_URL is set
 		LoggerOptions: muzak.LoggerOptions{Format: logFormat(settings.LogFormat)},
 		AccessLogOptions: muzak.AccessLogOptions{
 			Level:     slog.LevelInfo,
@@ -107,6 +116,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		},
 	},
 		muzak.WithSingleton(settings),
+		muzak.WithSingleton(&staffnotify.Running{Alerts: staffAlerts}),
 		muzak.WithSingleton(bus),
 
 		// The service opens PostgreSQL and Valkey itself, in order, before its loops start —

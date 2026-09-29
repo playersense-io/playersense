@@ -59,6 +59,7 @@ import (
 	"playersense.dev/backend/internal/ratelimit"
 	"playersense.dev/backend/internal/reports"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/staffnotify"
 	"playersense.dev/backend/internal/stores"
 	"playersense.dev/backend/internal/suspension"
 	"playersense.dev/backend/internal/transport"
@@ -127,6 +128,13 @@ func writeDocument(app *muzak.App, out io.Writer) error {
 // email, so a test of the accept flow has to be able to substitute a [mail.Recorder] for
 // the sender. Anything a deployment needs is a setting, not an override.
 func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.App, error) {
+	// PlayerSense's own Slack: what this process logs at ERROR. First, because it replaces the
+	// default logger and everything below is handed the default.
+	staffAlerts, staffLogger, err := staffnotify.ForProcess(settings, "api", muzak.LoggerOptions{Format: logFormat(settings.LogFormat)})
+	if err != nil {
+		return nil, err
+	}
+
 	// Construction is cheap and dials nothing. Each of these implements muzak.Lifecycle,
 	// so the application opens them before the server accepts traffic and closes them
 	// after it has drained — a request still in flight keeps a usable connection to the
@@ -317,6 +325,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 			},
 		},
 
+		Logger:        staffLogger, // nil unless STAFF_SLACK_ALERTS_URL is set
 		LoggerOptions: muzak.LoggerOptions{Format: logFormat(settings.LogFormat)},
 
 		// A health check polled every second should not drown out real traffic.
@@ -331,6 +340,7 @@ func build(settings config.Settings, overrides ...muzak.RouterOption) (*muzak.Ap
 		muzak.WithSingleton(cache),
 		muzak.WithSingleton(resolver),
 		muzak.WithSingleton(settings),
+		muzak.WithSingleton(&staffnotify.Running{Alerts: staffAlerts}),
 		muzak.WithSingleton(engine),
 		muzak.WithSingleton(ops.New(ch)),
 		muzak.WithSingleton(backlogReader(settings)),

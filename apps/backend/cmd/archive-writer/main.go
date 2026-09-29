@@ -28,6 +28,7 @@ import (
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/pgdb"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/staffnotify"
 )
 
 func main() {
@@ -43,6 +44,13 @@ func main() {
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
+	// PlayerSense's own Slack: what this process logs at ERROR. First, because it replaces the
+	// default logger and everything below is handed the default.
+	staffAlerts, staffLogger, err := staffnotify.ForProcess(settings, "archive-writer", muzak.LoggerOptions{Format: logFormat(settings.LogFormat)})
+	if err != nil {
+		return nil, err
+	}
+
 	bus, err := newBus(settings)
 	if err != nil {
 		return nil, err
@@ -71,6 +79,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// no manifest.
 		ShutdownTimeout: settings.ShutdownTimeout,
 
+		Logger:        staffLogger, // nil unless STAFF_SLACK_ALERTS_URL is set
 		LoggerOptions: muzak.LoggerOptions{Format: logFormat(settings.LogFormat)},
 		AccessLogOptions: muzak.AccessLogOptions{
 			Level:     slog.LevelInfo,
@@ -78,6 +87,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		},
 	},
 		muzak.WithSingleton(settings),
+		muzak.WithSingleton(&staffnotify.Running{Alerts: staffAlerts}),
 		muzak.WithSingleton(bus),
 		muzak.WithSingleton(db),
 		muzak.WithSingleton(store),

@@ -525,6 +525,19 @@ type Settings struct {
 	// customer's URL must be on the public internet (notify.NewClient).
 	NotifyAllowPrivate bool `env:"NOTIFY_ALLOW_PRIVATE" default:"false"`
 
+	// StaffSlackGrowthURL is a Slack incoming webhook in PlayerSense's own workspace, where the
+	// worker posts the day's digest at StaffGrowthAt: money in, new organizations, users. Not a
+	// studio's channel (those are rows, per project); this one belongs to the company. Empty turns
+	// the digest off.
+	StaffSlackGrowthURL string `env:"STAFF_SLACK_GROWTH_URL" secret:"true"`
+	// StaffSlackAlertsURL is another, for what a person should look at now: every ERROR a process
+	// logs, which includes each panic the framework recovers, held to one message per kind per
+	// fifteen minutes and twenty an hour. Empty turns alerting off.
+	StaffSlackAlertsURL string `env:"STAFF_SLACK_ALERTS_URL" secret:"true"`
+	// StaffGrowthAt is the time of day, in UTC, the growth digest is posted, for the reason
+	// WorkerDeriveAt is in UTC.
+	StaffGrowthAt string `env:"STAFF_GROWTH_AT" default:"09:00"`
+
 	// StreamSigningKey signs the tokens a report run's event stream is opened with, since a
 	// browser's EventSource cannot send an Authorization header. Every API instance must share
 	// it; empty makes each process draw its own, which is only right for a single process.

@@ -74,6 +74,7 @@ import (
 	"playersense.dev/backend/internal/retention"
 	"playersense.dev/backend/internal/routers"
 	"playersense.dev/backend/internal/scheduler"
+	"playersense.dev/backend/internal/staffnotify"
 	"playersense.dev/backend/internal/stores"
 	"playersense.dev/backend/internal/valkey"
 	"playersense.dev/backend/internal/webhooks"
@@ -185,9 +186,21 @@ func once(settings config.Settings) error {
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
+	// PlayerSense's own Slack: what this process logs at ERROR. First, because it replaces the
+	// default logger and everything below is handed the default.
+	alerts, logger, err := staffnotify.ForProcess(settings, "worker", muzak.LoggerOptions{Format: logFormat(settings.LogFormat)})
+	if err != nil {
+		return nil, err
+	}
+
 	db := chdb.NewSQL(settings.ClickHouseDSN)
 
 	deps, err := newDependencies(settings)
+	if err != nil {
+		return nil, err
+	}
+	// And the day's growth digest, which reads through the pools just made.
+	growth, err := staffnotify.GrowthFor(settings, deps.db, deps.cache)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +223,6 @@ func build(settings config.Settings) (*muzak.App, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	app := muzak.New(muzak.AppOptions{
 		Title:   "PlayerSense Worker",
 		Version: "0.1.0",
@@ -223,6 +235,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// cut off between two of them.
 		ShutdownTimeout: settings.ShutdownTimeout,
 
+		Logger:        logger, // nil unless STAFF_SLACK_ALERTS_URL is set
 		LoggerOptions: muzak.LoggerOptions{Format: logFormat(settings.LogFormat)},
 		AccessLogOptions: muzak.AccessLogOptions{
 			Level:     slog.LevelInfo,
@@ -249,6 +262,8 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(dispatcher),
 		muzak.WithSingleton(notifications),
 		muzak.WithSingleton(issues),
+		// After the pools the digest reads through, so it stops before them.
+		muzak.WithSingleton(&staffnotify.Running{Alerts: alerts, Growth: growth}),
 		// The day's exchange rates, fetched once an hour whatever else happens, so a quiet day's
 		// rates are still kept.
 		muzak.WithSingleton(&fx.Refresher{Service: &fx.Service{Source: &fx.Source{AppID: settings.OpenExchangeRatesAppID},

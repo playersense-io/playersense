@@ -27,6 +27,7 @@ import (
 	"playersense.dev/backend/internal/eventbus"
 	"playersense.dev/backend/internal/logs"
 	"playersense.dev/backend/internal/routers"
+	"playersense.dev/backend/internal/staffnotify"
 	"playersense.dev/backend/internal/valkey"
 	"playersense.dev/backend/internal/writer"
 )
@@ -44,6 +45,13 @@ func main() {
 }
 
 func build(settings config.Settings) (*muzak.App, error) {
+	// PlayerSense's own Slack: what this process logs at ERROR. First, because it replaces the
+	// default logger and everything below is handed the default.
+	staffAlerts, staffLogger, err := staffnotify.ForProcess(settings, "analytics-writer", muzak.LoggerOptions{Format: logFormat(settings.LogFormat)})
+	if err != nil {
+		return nil, err
+	}
+
 	bus, err := newBus(settings)
 	if err != nil {
 		return nil, err
@@ -82,6 +90,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		// a redelivery rather than a clean hand-off.
 		ShutdownTimeout: settings.ShutdownTimeout,
 
+		Logger:        staffLogger, // nil unless STAFF_SLACK_ALERTS_URL is set
 		LoggerOptions: muzak.LoggerOptions{Format: logFormat(settings.LogFormat)},
 		AccessLogOptions: muzak.AccessLogOptions{
 			Level:     slog.LevelInfo,
@@ -91,6 +100,7 @@ func build(settings config.Settings) (*muzak.App, error) {
 		muzak.WithSingleton(cache),
 		muzak.WithSingleton(ch),
 		muzak.WithSingleton(settings),
+		muzak.WithSingleton(&staffnotify.Running{Alerts: staffAlerts}),
 		muzak.WithSingleton(bus),
 
 		// Registered after its dependencies are published so it is stopped before them —
