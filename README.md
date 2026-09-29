@@ -178,6 +178,13 @@ Every destination is reached through a client that refuses private and special-p
 after resolution and follows no redirects (`NOTIFY_ALLOW_PRIVATE=true` lifts that for a local
 receiver in development).
 
+PlayerSense's own staff have two Slack incoming webhooks of their own, set in the environment
+rather than stored ([ADR 0053](docs/adr/0053-staff-hear-of-the-business-through-two-slack-channels.md)).
+`STAFF_SLACK_GROWTH_URL` gets a digest once a day at `STAFF_GROWTH_AT` (UTC, `09:00` by default) of the
+day before: money in, refunds, usage charged, new and total organizations, users and projects, and
+accounts owing. `STAFF_SLACK_ALERTS_URL` gets every ERROR the API, the worker and the writers log,
+panics included, at most one per kind per fifteen minutes and twenty an hour. Each is off while empty.
+
 **Reports**, the builder's graphs, run by hand or on a schedule:
 
 ```
