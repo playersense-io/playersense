@@ -111,3 +111,10 @@ kept in the ADR directory, marked superseded.
 
 Until then, a customer who needs their players' data in a specific jurisdiction is a customer
 this deployment cannot serve, and saying so is better than an arrangement that half-works.
+
+**A customer who will not send data to a third party at all** has a different answer, proposed
+in [ADR 0052](../adr/0052-a-customer-hosted-deployment-is-a-whole-instance.md): the whole stack
+runs as an instance in their own cloud account. Their game data never reaches PlayerSense. Only
+a license and a signed count of tracked players do, which is aggregate and names nobody. It is
+**Proposed, not built**, and it does not need the split described above. Until it is built, the
+answer to this customer is the same as the one in the paragraph before it.

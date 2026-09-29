@@ -169,7 +169,8 @@ Both should be generated from the column classification, which exists: see
 
 | Item | Why |
 |---|---|
-| SOC 2 / ISO 27001 | Programmes rather than architecture. Startable when a customer requires one |
+| SOC 2 / ISO 27001 | Programmes rather than architecture. Startable when a customer requires one, and until then the answer to a customer who asks is that PlayerSense cannot yet cover the cost. If a customer makes it a condition, it is a funded milestone in that customer's contract ([ADR 0052](../adr/0052-a-customer-hosted-deployment-is-a-whole-instance.md)) |
+| A paid penetration test, and paid legal review of the contract templates | Not budgeted. CI scanners (`govulncheck`, `gosec`, `trivy`, `semgrep`, OWASP ZAP), an SBOM and signed images stand in, free standard MSA and DPA templates are adapted, and a customer-hosted instance can be tested by the customer in their own account |
 | PCI DSS beyond Stripe's coverage | No card data reaches PlayerSense |
 | China PIPL | Needs a domestic entity and domestic infrastructure. Better out of scope than half-designed |
 | Age verification | The studio determines whether its game is child-directed. A processor guessing at a player's age would collect more data in order to collect less |
