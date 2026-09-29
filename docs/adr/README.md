@@ -78,6 +78,7 @@ a record is never updated to match a drifting document, it is superseded by a ne
 | [0049](0049-webhooks-hold-only-what-is-owed.md) | Webhooks keep in PostgreSQL only what is still owed | Accepted |
 | [0050](0050-logs-are-a-stream-of-their-own-billed-as-they-cost.md) | Logs are a stream of their own, stored where they are counted, and billed as they cost | Accepted |
 | [0051](0051-rules-route-events-to-channels.md) | Rules route events to channels, and the account's owners always hear about its money | Accepted |
+| [0052](0052-a-customer-hosted-deployment-is-a-whole-instance.md) | A customer-hosted deployment is a whole instance, not a split | Proposed |
 
 ## Template
 
