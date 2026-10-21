@@ -1,14 +1,34 @@
 # PlayerSense
 
-Game analytics platform. `project.md` is the architecture source of truth; `docs/adr/`
-records why it is that way, and `docs/compliance/` maps obligations onto the code that
-meets them.
+> [!WARNING]
+> **Under active development.** APIs, schemas, and SDK surfaces are still evolving and are not yet ready for production use.
+
+Game analytics and LiveOps platform. `project.md` is the architecture source of truth; `docs/adr/` records why it is that way, and `docs/compliance/` maps obligations onto the code that meets them.
+
+## Layout
+
+```
+apps/backend/     Go services and commands (module playersense.dev/backend)
+apps/client/      Customer dashboard (Nuxt)
+apps/admin/       Operations console for PlayerSense staff (Nuxt)
+apps/landing/     Marketing and pricing site (Nuxt)
+packages/         Shared TypeScript contracts, dashboard components, and UI primitives
+sdk/core/         The SDK protocol in Rust, once, with no I/O of its own
+sdk/ffi/          The C ABI over it, for every binding
+sdk/unity/        The Unity package: a host, a P/Invoke layer and the API a game calls
+db/clickhouse/    Goose migrations for the analytics and logging schema
+db/postgres/      Ent owns the PostgreSQL schema
+docs/adr/         Architecture decision records
+docs/compliance/  Obligation -> mechanism -> code -> test
+docs/sdk/         The language-neutral SDK protocol every client implements
+infra/stage1/     Local compose stack
+```
+
+Requires Go 1.27 (Muzak uses generic methods and `encoding/json/v2`), Node >= 20 with `pnpm`, and Rust for the SDK.
 
 ## Local stack
 
-Ports are deliberately **not** the service defaults — a `21xxx` block, below the macOS
-ephemeral range so nothing collides with an OS-assigned port. Change them in
-`apps/backend/.env` and nowhere else.
+Ports are deliberately **not** the service defaults — a `21xxx` block, below the macOS ephemeral range so nothing collides with an OS-assigned port. Change them in `apps/backend/.env` and nowhere else.
 
 | Service | Port |
 |---|---|
@@ -17,8 +37,7 @@ ephemeral range so nothing collides with an OS-assigned port. Change them in
 | ClickHouse native | 21900 |
 | Valkey | 21379 |
 
-Each app keeps its own settings beside it: `apps/backend/.env` (which the local stack reads
-too), `apps/client/.env` and `apps/admin/.env`, each copied from the `.env.example` next to it.
+Each app keeps its own settings beside it: `apps/backend/.env` (which the local stack reads too), `apps/client/.env` and `apps/admin/.env`, each copied from the `.env.example` next to it.
 
 ```bash
 cp apps/backend/.env.example apps/backend/.env
@@ -29,21 +48,17 @@ export COMPOSE_ENV_FILES=apps/backend/.env
 docker compose up -d
 ```
 
-The cold volume of the hot/cold policy is a second local directory by default, which
-exercises the policy and the part movement for real. To point it at a GCS bucket instead, set
-`CH_COLD_ENDPOINT` and the HMAC pair in `apps/backend/.env` and add the overlay:
+The cold volume of the hot/cold policy is a second local directory by default, which exercises the policy and the part movement for real. To point it at a GCS bucket instead, set `CH_COLD_ENDPOINT` and the HMAC pair in `apps/backend/.env` and add the overlay:
 
 ```bash
 export COMPOSE_FILE=infra/stage1/compose/docker-compose.yml:infra/stage1/compose/docker-compose.cold-object.yml
 ```
 
-It is an overlay rather than a flag because ClickHouse constructs every declared disk eagerly:
-an S3 disk with an empty endpoint is not an absent disk, it is a server that will not start.
+It is an overlay rather than a flag because ClickHouse constructs every declared disk eagerly: an S3 disk with an empty endpoint is not an absent disk, it is a server that will not start.
 
 ## Migrations
 
-Two databases: **PostgreSQL** for accounts, projects, keys, billing and the records that
-name a player, and **ClickHouse** for the events.
+Two databases: **PostgreSQL** for accounts, projects, keys, billing and the records that name a player, and **ClickHouse** for events and logs.
 
 ```bash
 go run ./apps/backend/cmd/migrate up          # postgres, then clickhouse
@@ -55,33 +70,9 @@ go run ./apps/backend/cmd/migrate reset       # drop everything, Keeper metadata
 go run ./apps/backend/cmd/migrate backfill events_daily sessions   # fill new rollups from history
 ```
 
-A materialized view only sees inserts made after it exists, so a rollup added by a migration starts
-empty. `backfill` runs each named view's own SELECT over the history already in `events_raw`, once,
-and fills anything chained from it the same way; it refuses a table that already holds rows, since
-running over those would count them twice. Stop analytics-writer while it runs.
+A materialized view only sees inserts made after it exists, so a rollup added by a migration starts empty. `backfill` runs each named view's own SELECT over the history already in `events_raw`, once, and fills anything chained from it the same way; it refuses a table that already holds rows, since running over those would count them twice. Stop analytics-writer while it runs.
 
-`verify` reads the live catalog rather than the schema files, which is what makes it proof
-rather than documentation. It used to also enforce §99's residency rule — no column
-classified `identifier` in the global tier — and that rule is gone with the tier
-([ADR 0038](docs/adr/0038-one-api-one-database.md)); the classification it was written in
-terms of is not.
-
-## Layout
-
-```
-apps/backend/     Go services and commands (module playersense.dev/backend)
-sdk/core/         The SDK protocol in Rust, once, with no I/O of its own
-sdk/ffi/          The C ABI over it, for every binding
-sdk/unity/        The Unity package: a host, a P/Invoke layer and the API a game calls
-db/clickhouse/    Goose migrations for the analytics schema
-db/postgres/      Ent owns the PostgreSQL schema
-docs/adr/         Architecture decision records
-docs/compliance/  Obligation -> mechanism -> code -> test
-docs/sdk/         The language-neutral SDK protocol every client implements
-infra/stage1/     Local compose stack
-```
-
-Requires Go 1.27 (Muzak uses generic methods and `encoding/json/v2`).
+`verify` reads the live catalog rather than the schema files, which is what makes it proof rather than documentation.
 
 ## Services
 
@@ -91,670 +82,20 @@ Requires Go 1.27 (Muzak uses generic methods and `encoding/json/v2`).
 go run ./apps/backend/cmd/api
 ```
 
-One binary and one address: the dashboard, the SDK's ingestion and configuration endpoints,
-and the reporting and data-subject surfaces. They were four deployables so a cell could run
-three of them and so ingestion could fail independently
-([ADR 0038](docs/adr/0038-one-api-one-database.md)).
-
-#### The dashboard
-
-`GET /openapi.json` describes the whole surface. Everything under `/v1` needs a Firebase ID token as
-`Authorization: Bearer <token>`; `/healthz` does not. A shared admin secret used to work and
-deliberately no longer does — a secret cannot say who is asking, and every answer here depends
-on who that is. Each route then names the permission it needs, and the refusal names the one
-that was missing.
-
-Organizations, projects, API keys, **the people in an organization** — and **the three tables a
-studio edits**:
-
-```
-GET                         /v1/organizations/{org}/roles
-GET                         /v1/organizations/{org}/members
-GET                         /v1/organizations/{org}/members/{member_id}
-       PUT                  /v1/organizations/{org}/members/{member_id}/role
-       PUT                  /v1/organizations/{org}/members/{member_id}/access
-              DELETE        /v1/organizations/{org}/members/{member_id}
-GET    POST                 /v1/organizations/{org}/invitations
-              DELETE        /v1/organizations/{org}/invitations/{invitation_id}
-GET                         /v1/invitations              (waiting for you)
-       POST                 /v1/invitations/accept
-```
-
-Reading needs `member.read`, inviting and revoking `member.invite`, removing `member.remove`.
-The two `PUT`s need **an owner or an admin** and no permission at all: a grantable "manage roles"
-would be silently equivalent to owner, because whoever held it could write themselves a role
-containing everything.
-
-**A role says what, project access says where** — two routes, because `all_projects` is the widest
-grant in the product and must not be given by omitting a field from a combined write.
-
-**An invitation is a token in an inbox.** Only its SHA-256 digest is stored, it is shown once in
-the link, and accepting it needs a Firebase account that has *verified* the address it was sent to
-— so forwarding it does not let a colleague join in somebody else's place. Somebody who lost the
-mail accepts by naming the organization instead; the verified address is the authorisation and the
-token is only how a link works.
-
-**Nothing is actually emailed yet.** `MAIL_SENDER=log` composes the message and says it delivered
-nothing, and the response's `delivered` member says the same — set `MAIL_LOG_BODY=true` to get the
-link out of a local stack. Invitations are the one rate-limited route on the dashboard, three per
-address per hour, failing closed ([docs/rate-limits.md](docs/rate-limits.md)).
-
-The last owner of an organization cannot be removed or demoted, by either door.
-
-Removing a member **deletes** the row, unlike a revoked key or an archived flag: a membership is
-not a record of what happened, it is a live grant of access to player data.
-
-**API keys**:
-
-```
-GET    POST                 /v1/organizations/{org}/projects/{project}/keys              key.read, key.create
-              DELETE        /v1/organizations/{org}/projects/{project}/keys/{key_id}     key.revoke
-       POST                 …/keys/{key_id}/roll        a replacement, shown once; the old one after grace_hours
-GET                         …/keys/{key_id}/usage       requests by hour, up to 48
-```
-
-Each key says who minted and who revoked it. Requests are counted as they authenticate, at one
-atomic add in the process; a flusher writes the counts to Valkey by the hour every fifteen seconds,
-which is where the list's 24-hour sparkline comes from, and `last_used_at` to PostgreSQL at most
-every five minutes per key. A rolled key stops at once, or after a grace of up to a week so a fleet
-of servers can move over; an SDK key is inside shipped builds, so rolling one with no grace stops
-every build that carries it.
-
-**Notification channels**, where reports notify (`reports.read` to see, `reports.write` to change):
-
-```
-GET    POST                 /v1/organizations/{org}/projects/{project}/channels
-       POST                 …/channels/test                     a draft, before it is saved
-GET                         …/channels/deliveries               every send, kept ninety days
-GET    PUT    DELETE        …/channels/{id}
-       POST                 …/channels/{id}/test
-```
-
-Email, and incoming webhooks rather than apps: Slack, Discord and Microsoft Teams URLs made in the
-studio's own workspace, a PagerDuty service's Events API v2 key, or a webhook of the studio's, signed
-with `X-PlayerSense-Id`, `-Timestamp` and `-Signature: v1=<HMAC-SHA256 of timestamp.body>` with a
-secret shown once at creation. A URL is a credential, so it is stored apart and shown back masked.
-Every destination is reached through a client that refuses private and special-purpose addresses
-after resolution and follows no redirects (`NOTIFY_ALLOW_PRIVATE=true` lifts that for a local
-receiver in development).
-
-PlayerSense's own staff have two Slack incoming webhooks of their own, set in the environment
-rather than stored ([ADR 0053](docs/adr/0053-staff-hear-of-the-business-through-two-slack-channels.md)).
-`STAFF_SLACK_GROWTH_URL` gets a digest once a day at `STAFF_GROWTH_AT` (UTC, `09:00` by default) of the
-day before: money in, refunds, usage charged, new and total organizations, users and projects, and
-accounts owing. `STAFF_SLACK_ALERTS_URL` gets every ERROR the API, the worker and the writers log,
-panics included, at most one per kind per fifteen minutes and twenty an hour. Each is off while empty.
-
-**Reports**, the builder's graphs, run by hand or on a schedule:
-
-```
-GET    POST                 /v1/organizations/{org}/projects/{project}/reports
-       POST                 …/reports/preview                   every node over the project's rows; sends nothing
-GET    PUT    DELETE        …/reports/{id}
-GET    POST                 …/reports/{id}/runs                 POST runs it now, as a test (dry: sends nothing)
-GET                         …/reports/{id}/runs/{run}
-       POST                 …/reports/{id}/runs/{run}/cancel
-GET                         …/reports/{id}/runs/{run}/exports/{node}   a file it wrote, for seven days
-GET                         …/reports/{id}/runs/{run}/stream    its events, signed in
-GET                         /v1/report-runs/{run}/events?token=  its events, for a browser's EventSource
-```
-
-Sources (events, players, purchases, sessions) each read at most fifty thousand rows of the last
-7, 30 or 90 days from the fact built for them; filter, join (player by player), group, formula and
-sort run over those rows in memory the limit bounds; a Notify sends to channels every run, when rows
-came out, or when the first row's figure crosses a line, with `{{report}}`, `{{rows}}`, `{{date}}`,
-`{{first.column}}` and `{{sum.column}}` filled in; an Export writes CSV or JSON to download. A run is
-followed as server-sent events (`run_started`, `node_started`, `node_finished`, `node_failed`,
-`node_skipped`, `delivery`, `run_finished`), numbered so a dropped stream resumes from
-`Last-Event-ID`, and written to Postgres so a run in the worker streams the same. Because
-`EventSource` cannot send an Authorization header, starting a run returns a `stream_url` with an
-hour-long token signed by `STREAM_SIGNING_KEY`; a client that can send headers uses the signed-in
-stream instead. Schedules are five-field cron lines in a timezone, joined to Start; the worker claims
-a due report by moving its next run forward in one conditional update, so two workers never run one
-schedule twice, and marks a run whose process died as failed. Reading needs `reports.read`; changing
-and running need `reports.write`, and a preview or a run `analytics.read` and `player.read` as well.
-
-**Purchase verification** (project.md §46-48, [ADR 0048](docs/adr/0048-verified-purchases-win.md)):
-
-```
-       POST                 /v1/purchases/verify                 project key or server key
-GET                         /v1/purchases/{store}/{transaction}  server key: what was verified, refunded since
-GET                         /v1/players/{player}/purchases       server key
-       POST                 /v1/store-notifications/apple/{project}/{token}    App Store Server Notifications V2
-       POST                 /v1/store-notifications/google/{project}/{token}   a Pub/Sub push of Play's RTDN
-GET                         /v1/organizations/{org}/projects/{project}/stores
-       PUT    DELETE        …/stores/{app_store|google_play|steam}  connect, change, disconnect
-       POST                 …/stores/{store}/test               the credentials, without a purchase
-       POST                 …/stores/{store}/notification-url   a new URL; the old one stops
-GET                         …/purchase-attempts                  the verification log, with each step
-GET                         …/verified-purchases/{id}
-GET                         /v1/operator/purchase-verification   staff: the day across the platform
-GET                         /v1/operator/purchase-attempts[/{attempt}]
-       POST                 /v1/operator/projects/{project}/purchase-check   staff: a receipt, step by step, recording nothing
-```
-
-The game or its server sends what the store handed it: an App Store purchase's StoreKit 2
-`signed_transaction` (checked against Apple Root CA G3, no call to Apple) or its `transaction_id`
-(looked up with the project's In-App Purchase key); a Google Play `purchase_token` with its
-`product_id` and the price the game showed, since Google's answer carries none; a Steam `order_id`.
-PlayerSense always asks the store, and the answer's `status` says what to do: grant on `verified` or
-`sandbox`, keyed by the purchase `id`, never on `rejected`. A retry answers the same purchase with
-`duplicate` set; the same transaction for another player is rejected as `replayed`. Refunds arrive
-by the stores' notifications and by a sweep of every store every six hours. Each change ships to
-ClickHouse's `purchases` through the `purchase_changes` outbox, exactly once, and from the day a
-store is connected its revenue is its verified purchases rather than what the game reports ("verified
-wins"). Connecting stores needs `purchases.configure`; the log and the purchases need `player.read`.
-The web shop is not verified yet and stays what the game reports.
-
-**Revenue in dollars.** The Revenue page and the purchases ledger carry US dollars at each day's
-rate, from Open Exchange Rates (`OPENEXCHANGERATES_APP_ID`, base USD). The free plan allows a
-thousand calls a month, so rates are fetched at most once an hour: kept in Valkey for an hour, one
-process fetching while the others wait, and each fetch kept as its day's rates in PostgreSQL
-(`fx_rates`), which is how a past day converts at its own rate without the paid historical
-endpoint. A day before the first kept borrows the nearest, and the answer says so (`exact`). Gross
-is the stores' figure; fees and net are estimates, each store's share set per organization
-(`GET PUT /v1/organizations/{org}/revenue-settings`, 30% until set), with the reason net cannot be
-known exactly. Tests never call the rate source.
-
-**Webhooks** (project.md §49-51, [ADR 0049](docs/adr/0049-webhooks-hold-only-what-is-owed.md);
-`webhooks.read` to see, `webhooks.write` to change, test and resend):
-
-```
-GET                         /v1/webhook-events                   every event type, and which are sent yet
-GET    POST                 /v1/organizations/{org}/projects/{project}/webhooks
-GET    PUT    DELETE        …/webhooks/{id}
-GET                         …/webhooks/{id}/secret              shown on request, and audited
-       POST                 …/webhooks/{id}/secret/roll         the old one signs beside it for a day
-       POST                 …/webhooks/{id}/test                a made-up event, sent now
-GET                         …/webhooks/{id}/health              the last 24 hours, and tries by hour
-GET                         …/webhooks/{id}/deliveries[/{delivery}]
-       POST                 …/webhooks/{id}/deliveries/{delivery}/resend
-       POST                 …/webhooks/{id}/resend-failed       what it missed while it was down
-GET                         /v1/operator/webhooks                staff: the day, the backlog, the worst endpoints
-```
-
-An event is written to `webhook_outboxes` in the transaction of the change it describes, and the
-worker POSTs it to every endpoint that hears it, signed `v1=` HMAC-SHA256 of `timestamp.body`, with
-`X-PlayerSense-Id` the same on every try. A delivery that lands at its first try is never a
-PostgreSQL row; one that fails waits in `webhook_retries` for the schedule (1 and 5 minutes, half an
-hour, 2, 6 and 12 hours, a day twice), and an endpoint failing for three days is turned off and its
-owners emailed. Every try is logged to ClickHouse (`webhook_attempts`, with `webhook_deliveries`
-and `webhook_health_1h` built from it) for thirty days. One worker delivers about 28,000 a second
-to a local endpoint (`PLAYERSENSE_LOAD=10000 go test ./apps/backend/cmd/api -run Load`).
-
-**A project's settings**:
-
-```
-GET    PATCH                /v1/organizations/{org}/projects/{project}             the name; project.update
-       PUT                  /v1/organizations/{org}/projects/{project}/retention   project.update
-       POST   DELETE        /v1/organizations/{org}/projects/{project}/deletion    project.delete
-GET                         /v1/organizations/{org}/projects/{project}/apps        platforms and SDKs seen
-```
-
-Retention is one of 7, 30, 90, 180 or 365 days, at most the policy tier's cap (365, child-directed
-90, kids strict 30) and the plan's `max_raw_retention_days`. New rows take a change within the key
-cache's five minutes. A raised tier brings nothing back; a lowered one is enforced on rows already
-written by the worker, which deletes raw rows older than it once a day until no row stamped with the
-old tier can remain. A deletion waits thirty days and can be cancelled until then; when due, the
-worker revokes the project's keys and hides it, and an hour later deletes its analytics from every
-ClickHouse table and hands its archive to the expiry sweep. Its usage and invoices stay.
-
-**The audit log** — `audit.read`, which only OWNER and ADMIN hold among the seeded six:
-
-```
-GET                         /v1/organizations/{org}/audit    ?action&target_type&target_id&actor&from&to&before
-```
-
-Every route that changes something writes an entry: memberships, roles, project
-access, keys, invitations, segments, flags, LiveOps events, publishes, credit and billing settings.
-**Append-only by construction** — every field on the row is immutable and the mixin omits
-`updated_at`, so ent generates an update builder with no setter at all, and §08's "a log the operator
-can edit proves nothing" is a compile error rather than a policy.
-
-Entries are written **by hand, at the decision**, not by middleware. Middleware records requests; an
-audit log has to record what something *was*: "Ada's role changed from developer to owner" and "the
-rollout moved from 10% to 100%" were never in the request. Forgetting one fails the suite —
-`TestEveryMutatingRouteDecidesAboutAudit` reads the OpenAPI document and demands that every mutating
-route is either recorded or exempt with a reason
-([ADR 0037](docs/adr/0037-an-audit-log-records-decisions-not-requests.md)).
-
-Actions PlayerSense staff take on an account are entered as **PlayerSense staff** with the address
-their verified sign-in carried (see *The operations console* below).
-
-**Usage, the wallet and the plan** — `billing.read`, except the last, which needs `billing.manage`:
-
-```
-GET                         /v1/organizations/{org}/usage
-GET                         /v1/organizations/{org}/billing
-GET                         /v1/organizations/{org}/billing/ledger
-       PUT                  /v1/organizations/{org}/billing/auto-topup
-```
-
-**The balance is not a column.** Credit is held as *lots* — one per grant, each with its own
-remaining amount and its own expiry — because promotional credit expires and a single number cannot
-expire part of itself. `available_micros` is the sum of what is left in every lot that has not
-lapsed; `ledger_balance_micros` is the ledger's running total, which is briefly higher between credit
-lapsing and the sweep writing it off. Both are returned, because a number that looks wrong should be
-explainable ([ADR 0036](docs/adr/0036-a-wallet-is-lots-because-credit-expires.md)).
-
-**Credit is spent promos first — soonest to expire first — then purchased credit oldest first.** A
-promo is the only credit that can be lost, so spending a customer's own money while a trial credit
-ticks down is charging them for something they were already given. A promo lasts ninety days unless
-somebody names another date; purchased credit never expires and cannot be given a date.
-
-**Putting credit in a wallet is a staff action**, behind the operations console's sign-in rather than
-any customer permission, so an owner holding everything still cannot grant themselves credit:
-
-```
-       POST                 /v1/operator/organizations/{org}/credits
-       POST                 /v1/operator/organizations/{org}/charges
-```
-
-`reference` on both is the idempotency key: the same one twice grants or charges once. The staff
-member who acted is on the lot, in the customer's audit log and in `staff_access` with the ticket.
-
-The **usage meter** runs on the worker, deriving each day from `metrics_daily` — the same fact the
-dashboard's DAU comes from, so an invoice and a chart are two readings of one number. A day is
-rewritten until it settles and final at eight days. Tracked players is reported as the busiest day
-rather than a sum: adding daily figures counts one player once per day they played.
-
-**Players are charged as they arrive** ([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)).
-`billing-writer` counts each organization's new tracked players this month as batches arrive, prices
-each at its *position* in the month on the plan's rate card, and queues the charge; every five seconds
-the queue is drained into the wallet. Usage the wallet cannot cover becomes arrears — never a refused
-charge, and never a refused batch — and the next top-up pays it first. The billing page's `month`
-shows the exact count, what it cost, and the band the next player lands in.
-
-**Prices are rate cards, and staff publish them rather than edit them:**
-
-```
-GET    POST                 /v1/operator/plans
-       PUT                  /v1/operator/plans/{plan}
-GET    POST                 /v1/operator/plans/{plan}/rate-cards
-       PUT                  /v1/operator/organizations/{org}/plan
-GET                         /v1/pricing                 public: what the landing page reads
-```
-
-A card is a plan's tiers from `effective_from` on. It cannot be changed, and it starts no sooner than
-a minute after it is published — chargers keep prices in memory for less than that, so every one of
-them has the card before it applies. A new price is a new card, and each player is priced at the card in force when they arrived. Tiers are
-player positions within a calendar month, inclusive, and the last is unbounded. The launch prices —
-$2.50 per 1,000 players to 100,000, $2.00 to 500,000, $1.75 to 1,000,000, $1.50 above, so a studio
-with 200,000 players a month and 10,000 included pays $425, and one with 500,000 pays $1,025 — are data, loaded like this (`$TOKEN` is a staff
-member's Firebase ID token and `$TICKET` the change's ticket reference):
-
-```bash
-curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
-  "key": "payg", "name": "Pay as you go", "is_default": true,
-  "entitlements": {"included_mau": 10000}}'
-
-curl -X POST localhost:21080/v1/operator/plans/payg/rate-cards -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
-  "mode": "graduated", "note": "launch prices: $2.50 per 1,000 players",
-  "tiers": [
-    {"up_to": 100000,  "unit_price_micros": 2500},
-    {"up_to": 500000,  "unit_price_micros": 2000},
-    {"up_to": 1000000, "unit_price_micros": 1750},
-    {"unit_price_micros": 1500}]}'
-```
-
-**Money reaches the wallet through Stripe**, and PlayerSense never holds a card number
-([ADR 0040](docs/adr/0040-stripe-funds-the-wallet.md)):
-
-```
-       POST                 /v1/organizations/{org}/billing/top-ups    → a Stripe Checkout URL
-       POST                 /v1/organizations/{org}/billing/portal     → Stripe's customer portal URL
-GET    POST                 /v1/organizations/{org}/billing/cards      saved cards; POST → Checkout to save one
-GET                         /v1/organizations/{org}/billing/details    what the invoices print
-GET                         /v1/organizations/{org}/billing/receipts   top-up and subscription invoices
-       POST                 /v1/stripe/webhook                         Stripe only; signature-verified
-```
-
-Cards, invoice details and receipts are Stripe's, edited in Checkout and the customer portal; what
-PlayerSense keeps is Stripe's own description of them, for showing: a card's brand, last four digits,
-expiry and whether it is the default; the name, address and tax ids the invoices print; and each
-top-up's and subscription's invoice with its page and PDF. Read from Stripe the first time the page
-asks (and with `refresh=true`), then kept in step by `payment_method.*`, `customer.updated`,
-`customer.tax_id.*` and `invoice.*`.
-
-Both `billing.manage` routes return a URL to send the browser to. Nothing is credited by opening
-Checkout or by the browser coming back — only by Stripe's signed webhook, keyed on the PaymentIntent so
-a payment reported several ways is credited once. The card paid with is saved at Stripe, and automatic
-top-up (`PUT …/billing/auto-topup`) charges it from `billing-writer` when the balance falls below the
-threshold, with an idempotency key committed before the request so a lost response never becomes a
-second charge. Every top-up is invoiced by Stripe — Checkout top-ups and automatic ones alike — with the
-invoice in the customer portal. A refund or a dispute takes the credit back — never promotional credit — and turns
-automatic top-up off; a failed refund or a won dispute puts it back. The charge that leaves a balance
-low queues the top-up in its own transaction, and the
-queue is worked every two seconds; at most 3 automatic charges per organization in any 24 hours
-([ADR 0041](docs/adr/0041-top-ups-are-queued-by-the-charge-pricing-is-cached.md)). Without `STRIPE_SECRET_KEY` these routes answer 503.
-
-To receive webhooks locally, forward them with the Stripe CLI and give the API the secret it prints:
-
-```bash
-stripe listen --events customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled,checkout.session.completed,checkout.session.async_payment_succeeded,refund.created,refund.updated,refund.failed,charge.dispute.created,charge.dispute.funds_withdrawn,charge.dispute.funds_reinstated,charge.dispute.closed,invoice.finalized,invoice.sent,invoice.paid,invoice.voided,invoice.marked_uncollectible,invoice.overdue,invoice_payment.paid,credit_note.created,payment_method.attached,payment_method.updated,payment_method.automatically_updated,payment_method.detached,customer.updated,customer.tax_id.created,customer.tax_id.updated,customer.tax_id.deleted \
-  --forward-to localhost:21080/v1/stripe/webhook
-STRIPE_WEBHOOK_SECRET=whsec_… go run ./apps/backend/cmd/api    # the secret `stripe listen` printed
-```
-
-Against Stripe's test mode, `STRIPE_LIVE=1 go test ./apps/backend/internal/payments -run Live` checks
-the SDK wiring, and with `stripe listen` and the API running, `STRIPE_E2E=1 … -run EndToEnd` makes a
-real automatic top-up and waits for Stripe's own webhook for it.
-
-**Plans are Stripe subscriptions** ([ADR 0042](docs/adr/0042-plans-are-stripe-subscriptions.md)).
-Enterprise, $199 a month or $1,990 a year (ten months' price), unlocks `premium_support`, `slack_reports` and `mcp_access`;
-Free unlocks nothing. Staff set a plan's features with `PUT /v1/operator/plans/{plan}` and its prices
-with `PUT /v1/operator/plans/{plan}/subscription`, which creates the Stripe Product and Prices. A studio
-subscribes with `POST /v1/organizations/{org}/billing/subscription` (a Checkout URL) and manages or
-cancels in the portal; Stripe's `customer.subscription.*` webhooks move the organization onto the plan
-and, when it ends, back to the default. The subscription is billed to the card; players are still charged
-from the wallet on every plan.
-
-```bash
-curl -X POST localhost:21080/v1/operator/plans -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
-  "key": "enterprise", "name": "Enterprise",
-  "entitlements": {"included_mau": 10000},
-  "features": ["premium_support", "slack_reports", "mcp_access"]}'
-
-curl -X PUT localhost:21080/v1/operator/plans/enterprise/subscription -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
-  "monthly_price_micros": 199000000, "yearly_price_micros": 1990000000}'
-```
-
-Enterprise charges players only once it has a rate card of its own — publish one, the same as Free's or
-different.
-
-**Owing is tolerated, within bounds** ([ADR 0043](docs/adr/0043-a-bounded-tolerance-for-accounts-that-owe.md)).
-An account that owes keeps ingesting for `BILLING_GRACE_PERIOD` (7 days), or until it owes its credit
-limit — 20% of its last 30 days' paid usage, never below a $50 floor or its plan's `credit_limit_micros` —
-whichever comes first. Then its SDK batches are answered 429 with `Retry-After`, which the SDK keeps
-them for, until it pays; paying lets it back in within about half a minute. Staff can set an exact limit
-for one organization with `PUT /v1/operator/organizations/{org}/credit-limit`.
-
-**Contracted organizations are invoiced monthly** ([ADR 0045](docs/adr/0045-contracted-accounts-are-invoiced-monthly.md)).
-Staff put an organization on a contract — net terms, the grace after a missed due date, a platform
-fee, a minimum commitment, a credit limit, a PO number — and from then on usage its credit does not
-cover is a *receivable*, owed on the next invoice rather than overdue. `billing-writer` closes each
-month `BILLING_INVOICE_CLOSE_AFTER` (2 hours) after it ends and issues one Stripe invoice
-(`send_invoice`, due `terms_days` later): the fee, the month's players, credits applied, and any top-up
-to the minimum. An invoice is a stretch of the ledger, so it cannot disagree with it; usage that
-settles after its month closed is on the next invoice as prior-period usage. Stripe collects it — by
-bank transfer or card on its hosted page — and its webhook settles the receivable. The account is
-suspended only `overdue_grace_days` after a missed due date, or at once when what it owes, billed or
-not, reaches its credit limit. Customers of an invoiced organization cannot top up, turn on automatic
-top-up or subscribe; its plan fee is on the invoice, and staff assign its plan.
-
-```
-PUT    /v1/operator/organizations/{org}/contract                            invoiced or prepaid, from now
-GET    /v1/operator/organizations/{org}/invoices                            drafts, failures, discrepancies
-POST   /v1/operator/organizations/{org}/invoices/{invoice_id}/mark-paid     a wire Stripe did not see
-POST   /v1/operator/organizations/{org}/invoices/{invoice_id}/credit-notes  lower an open invoice
-GET    /v1/organizations/{org}/billing/invoices                             billing.read
-GET    /v1/organizations/{org}/billing/invoices/{invoice_id}                billing.read
-```
-
-```bash
-curl -X PUT localhost:21080/v1/operator/organizations/$ORG/contract -H "Authorization: Bearer $TOKEN" -H "X-Staff-Ticket: $TICKET" -d '{
-  "collection": "invoiced", "terms_days": 30, "overdue_grace_days": 14,
-  "platform_fee_micros": 2000000000, "minimum_commitment_micros": 5000000000,
-  "credit_limit_micros": 20000000000, "billing_email": "ap@publisher.example",
-  "po_number": "PO-4471"}'
-```
-
-Moving an organization back to `prepaid` issues a final invoice for everything unbilled; its open
-invoices stay collectable. Invoice reminder emails are Stripe's Dashboard setting.
-
-`is_default` is the plan every new organization is put on. With no default plan, organizations get no
-billing account and `billing-writer` warns that their players are not being billed. The included
-players are free and still hold positions: with 10,000 included, player 100,001 is still in the
-$0.002 band.
-
-And **the three tables a studio edits**:
-
-```
-GET    POST                 /v1/organizations/{org}/projects/{project}/segments
-GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/segments/{key}
-GET    POST                 /v1/organizations/{org}/projects/{project}/flags
-GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/flags/{key}
-GET    POST                 /v1/organizations/{org}/projects/{project}/liveops-events
-GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/liveops-events/{key}
-GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/draft
-       POST                 /v1/organizations/{org}/projects/{project}/config/{environment}/publish
-GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/versions
-GET                         /v1/organizations/{org}/projects/{project}/config/{environment}/versions/{v}
-       POST                 /v1/organizations/{org}/projects/{project}/config/{environment}/versions/{v}/rollback
-GET    POST                 /v1/organizations/{org}/projects/{project}/experiments
-GET    PUT    DELETE        /v1/organizations/{org}/projects/{project}/experiments/{id}
-       POST                 …/experiments/{id}/start, /stop, /conclude, /ship
-       PUT                  …/experiments/{id}/traffic
-```
-
-Reads need `liveops.read`, writes `liveops.write`, and publishing and rolling back alone need
-`liveops.publish` — which is what lets a DEVELOPER draft a rollout and hold no power to ship it.
-
-**An experiment is its own record, compiled into its flag.** It names a flag, two to eight arms
-(each a value of the flag's kind, different from the others, weights adding to 100), the share
-of the audience let in and the metric it is judged on. While it runs, every publish compiles it
-into the flag as a split: one hash decides who is in the test and another which arm, so raising
-traffic only adds players. config-api tells the SDK the experiment and arm beside the value, and
-the SDK puts them on the flag's `feature_exposure` as `experiment` and `arm`, which is what
-`flag_assignments` counts; an SDK that predates this is counted by value. Stopping or concluding
-takes the split out of the next publish, and shipping makes the winner the flag's fallback.
-A rollback publishes an earlier version's document again as the next version, with the reason.
-
-**A write is checked as thoroughly as a publish.** The rule is parsed, every segment reference is
-resolved against the project, a cycle is refused, and every flag value is checked against the
-flag's declared kind — so "segment `whales` does not exist" reaches the person who typed it
-rather than whoever presses publish three days later
-([ADR 0034](docs/adr/0034-a-rule-is-validated-when-it-is-written.md)).
-
-**What a flag and an event say about themselves.** A flag has a `purpose` (release, kill switch,
-config or experiment), `tags` and `grants_value`; an event a `description`, the metric it is meant
-to move (`goal`) and the ones it must not hurt (`watch`). None of them reaches a player, a write that
-does not send them leaves them alone, and every flag, segment and event says who wrote it and who
-changed it last.
-
-**DELETE archives; it never deletes.** A published version holds each rule inlined, so the row is
-what still explains version 7. The next publish stops carrying it.
-
-**The draft is the read the publish needs.** It compiles what the next version would be and
-throws it away, reporting whether it compiles, what it would carry, whether serving it costs a
-history lookup per request, and what is being left out and why — because an archived flag and a
-paused event are both absent on purpose.
-
-#### Ingestion
-
-`POST /v1/batches` with `Authorization: Bearer ps_project_live_...`. Answers 202 once the batch
-is durably queued. `EVENT_BUS=local` writes an fsynced NDJSON spool under `EVENT_BUS_DIR`;
-`EVENT_BUS=pubsub` publishes to Google Pub/Sub.
-
-The body may be sent `Content-Encoding: gzip` or `zstd`, and an SDK should leave `event_id`
-out and let the gateway derive it. Together those take a 500-event batch from 290 bytes an
-event to 8.1 — see [ADR 0026](docs/adr/0026-compressed-json-and-derived-event-ids.md), and
-`go run ./apps/backend/cmd/wiresize` to reproduce the numbers.
-
-What a client must actually do — sessions, consent, the disk spool, retries, and what happens
-when the player quits after eight seconds with no network — is
-[docs/sdk/protocol.md](docs/sdk/protocol.md), implemented once in `sdk/core` and shared by
-every binding. How a studio describes its game for targeting, and why geography is resolved
-from the connection rather than sent by the client, is
-[docs/sdk/context-and-targeting.md](docs/sdk/context-and-targeting.md).
-
-#### Reporting
-
-Two questions, and **two credentials that can ask them**.
-
-For a machine, with `Authorization: Bearer ps_reporting_live_...`:
-
-- `POST /v1/cohorts/query` — retention, playtime, revenue, LTV, payer conversion and
-  behavioural segments, keyed on when a player arrived (§29).
-- `POST /v1/metrics/query` — active players, sessions, events and revenue over time, keyed
-  on when something happened (§26, §27).
-
-For a person, with a Firebase ID token and `analytics.read`:
-
-```
-POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/cohorts/query
-POST /v1/organizations/{org}/projects/{project}/analytics/{environment}/metrics/query
-```
-
-The dashboard needs these because §52 makes a reporting key a secret and a browser cannot hold
-one — shipping it to the page would publish every studio's analytics to anyone who opened the
-network tab.
-
-**The scope is still not the caller's to choose** (Appendix C #3). The project comes from the
-path and is checked against that person's project access list *before* any permission — one they
-were not given is "no such project", never a refusal — and the environment is looked up inside
-it. The body's `project_id`, `environment_id` and `org_id` remain decoys that refuse the request.
-The environment is in the path rather than pinned to the credential because a person switches
-between development and production, where a key is minted for one.
-
-**Reading a chart cannot create an account.** `core.ResolveKnownUser` withholds the account
-creation `core.ResolveUser` performs on a first sign-in, so a valid token from a stranger
-cannot bring a user row or a personal organization into existence as a side effect.
-
-Both credentials read pre-aggregated facts and never join on a player key. Cells describing too
-few players are suppressed rather than returned as zero, and every answer says how many were
-withheld. A time series also says which summary tier answered it and whether its player count is
-exact or a sketch. A person and a key asking the same question get the same numbers and the same
-provenance — there is one planner, and a test compares the two answers row by row.
-
-#### The dashboard's pages
-
-Beside the two queries, one read per page, all under the same analytics path and all answered from
-facts built for them ([ADR 0046](docs/adr/0046-every-page-reads-a-fact-built-for-it.md)):
-
-```
-GET   …/analytics/{environment}/events                       every event, its counts, players, properties
-GET   …/analytics/{environment}/events/{name}                one event: series, splits, property values
-GET   …/analytics/{environment}/events/{name}/occurrences    its newest occurrences            player.read
-GET   …/analytics/{environment}/sessions                     lengths, endings, platforms, heatmap
-GET   …/analytics/{environment}/sessions/recent              the newest sessions               player.read
-GET   …/analytics/{environment}/players                      the directory of installs         player.read
-GET   …/analytics/{environment}/players/{id}                 an install, or an account by id   player.read
-GET   …/analytics/{environment}/revenue                      by day, product, store, country, price
-GET   …/analytics/{environment}/purchases                    the ledger, a page at a time      player.read
-GET   …/analytics/{environment}/flags/exposures              every flag read in a range
-GET   …/analytics/{environment}/flags/{flag}/exposures       one flag by value, version and build
-GET   …/analytics/{environment}/experiments/{flag}           each arm's outcomes over seven days
-GET   …/analytics/{environment}/experiment-results/{id}      an experiment's arms over the days it ran
-POST  …/analytics/{environment}/funnels/query                a steps or progression funnel
-GET POST PUT DELETE …/funnels[/{id}]                          funnels saved by name, without a range
-GET   …/analytics/{environment}/segments/reach               each segment's share of last week's players
-GET   …/analytics/{environment}/liveops-events/{key}/impact  one window's days against the weeks before
-GET PUT …/event-definitions[/{name}]                          an event's category and description
-GET   /v1/organizations/{org}/analytics/{environment}/projects    every readable project, side by side
-```
-
-`…` is `/v1/organizations/{org}/projects/{project}`.
-
-**Segment reach** evaluates every segment, with the evaluator config-api answers players with, on
-one sample of up to twenty thousand of last week's installs read in key order (as good as random,
-since the key ends in a hash of the install), and scales it to the week's players. A rule naming
-the game's own context, the build it runs now, the network or an account cannot be counted from
-what is stored, and names the keys that stop it. **A LiveOps event's impact** compares the
-project's days around one of its windows with the same weekdays of the four weeks before; it is
-about every player, not only the event's audience, until the SDK reports who was in it. The pages that count need `analytics.read` and
-withhold any count of people under the suppression threshold, as the two queries do. The ones that
-name a player need **`player.read`** as well, so a studio can hand somebody the numbers without its
-players; Developer and Growth Manager are seeded with it. None of those is served for a
-`kids_strict` project.
-
-`metrics/query` also reads the whole-project minute and hour tiers (`activity_1m`, `activity_1h`),
-splits a minute or hour series by `event_name`, and answers `continuing_players` and
-`reactivated_players` by day; `cohorts/query` answers `metric: "event"`, carries sessions on every
-row, and groups by the month.
-
-Nothing here joins. Each fact is built by a view that aggregates inside the insert block, or by the
-nightly derivation, and the questions that look like joins are answered by stamping, by a union
-grouped by device, or by two bounded statements. The few reads of `events_raw` (occurrences, a
-timeline, a funnel) run under tighter limits (`QUERY_RAW_*`), bounded by the sort key and a day
-range; a funnel reads only its step events and decides each player with `windowFunnel`. Every
-statement has a memory ceiling (`QUERY_MAX_MEMORY_USAGE`) and spills to disk before it; one that
-reaches any limit is answered 422 with what to narrow.
-
-#### The operations console
-
-Everything under `/v1/operator` is for PlayerSense staff (§56, §104). Staff sign in with the same
-Firebase project as customers, and are staff because an active row in `staff_members` says so; a
-customer's valid sign-in reaches none of it. Each member holds some of four roles: **ops** (the
-platform: ingestion, the queue, ClickHouse, storage), **support** (one customer's records),
-**billing** (one customer's money, and the catalogue) and **admin** (all of it, and who is staff).
-
-A route that reaches one customer's records (the directory included), or changes the catalogue, needs a ticket reference in
-`X-Staff-Ticket` and writes a `staff_access` row (who, which customer, the ticket, when) before it
-runs; `TestEveryCustomerRouteAsksForATicket` fails for one that forgets. Changes to an account are also
-in the customer's audit log as **PlayerSense staff** with the verified address.
-
-**Viewing as a customer.** Support sends `X-Staff-View-As: <org slug>` with a ticket on the
-customer dashboard's own routes (`/v1/organizations/{org}/...`) and sees what a member who may read
-everything sees, and nothing more: `GET` and `HEAD` only, every read permission on every project,
-and read-only on the actor, so a write is refused even on a route that forgot to say it writes.
-Every request is a `staff_access` row (`support.view_as`, with the method and path) written before
-it is answered. The browser apps' request headers, these included, are allowed by the API's CORS
-policy by name.
-
-```
-GET              /v1/operator/me              who you are to the console
-GET   POST       /v1/operator/staff           admin: who is staff, and adding somebody
-      PUT        /v1/operator/staff/{id}      admin: their roles, or deactivating them
-GET              /v1/operator/staff-access    admin: every staff read of customer data
-GET              /v1/operator/organizations   find one: slug, name, id, sequence or a member's address
-GET              /v1/operator/organizations/{org}          its projects, members and account
-GET              /v1/operator/projects        find one: slug, name, id or the ingestion page's sequence
-GET              /v1/operator/projects/{id}   its environments, every key, 30 days of its meter
-GET   PUT        /v1/operator/organizations/{org}/entitlements   overrides, merged; null clears one
-GET              /v1/operator/organizations/{org}/billing        the wallet plus Stripe ids
-GET              /v1/operator/organizations/{org}/ledger         the statement, paged with before
-GET              /v1/operator/organizations/{org}/credit-lots    grants; all=true for spent ones
-GET              /v1/operator/organizations/{org}/usage          the customer's usage page
-GET              /v1/operator/organizations/{org}/audit          the customer's own log, filtered
-GET              /v1/operator/accounts        billing: accounts suspended, overdue, declined or stuck
-GET              /v1/operator/stripe-events   billing: every webhook and what became of it
-GET              /v1/operator/stripe-events/{id}          one, with its body
-POST             /v1/operator/stripe-events/{id}/replay   handle a failed or ignored one again
-GET              /v1/operator/overview        the front page: pipeline, node, queue, worker, and accounts
-GET              /v1/operator/ingestion       ops: every tenant's events, bytes, batches, lag
-GET              /v1/operator/clickhouse      ops: replication, merges, mutations, parts, memory
-GET              /v1/operator/storage         ops: bytes on disk by table and project
-GET              /v1/operator/rate-limits     ops: every budget, who was refused by hour, a project's counters
-GET              /v1/operator/queue           ops: each writer's unconsumed batches, their age, dead letters
-GET              /v1/operator/jobs            ops: every worker pass, its failures, and the erasure,
-                                              export and archive queues waiting on them
-POST             /v1/operator/projects/{id}/archive-manifests/{m}/retry   hand a failed object back
-```
-
-The first admin is added from the command line, since nobody exists yet to add them:
-
-```bash
-go run ./apps/backend/cmd/staff add you@playersense.dev --roles admin
-go run ./apps/backend/cmd/staff list
-```
-
-#### Data-subject requests
-
-§101's surface, with
-`Authorization: Bearer ps_server_live_...` — a server key, not a reporting one, because
-erasing a studio's player is not the same privilege as reading its aggregates:
-
-- `POST /v1/privacy/erasures` — records the request and tombstones the actor in the same
-  round trip; removal runs in the worker over the following hours.
-- `POST /v1/privacy/exports` — everything held about one actor, collected from
-  `GET /v1/privacy/exports/{id}/download` as newline-delimited JSON.
-
-A server key rather than a reporting one, because erasing a studio's player is not the same
-privilege as reading its aggregates.
-
-The same requests from the dashboard, by a signed-in member with a reason, and the project's list
-of them:
-
-```
-GET                         /v1/organizations/{org}/projects/{project}/privacy                 privacy.read
-       POST                 /v1/organizations/{org}/projects/{project}/privacy/erasures        privacy.erase
-       POST                 /v1/organizations/{org}/projects/{project}/privacy/exports         privacy.export
-GET                         …/privacy/exports/{request_id}/download                            privacy.export
-```
-
-Each request records who asked and the reference they gave; the organization's audit log records
-that a request was made and by whom, never which player it names.
+One binary and one address ([ADR 0038](docs/adr/0038-one-api-one-database.md)):
+
+- **Dashboard & Control Plane** — Organizations, roles and permissions, invitations, projects, API keys, LiveOps (segments, feature flags, scheduled events, experiments, versioned config drafts and rollbacks), custom report builder, notification channels and routing rules ([ADR 0051](docs/adr/0051-rules-route-events-to-channels.md)), outbound webhooks ([ADR 0049](docs/adr/0049-webhooks-hold-only-what-is-owed.md)), and an append-only decision audit log ([ADR 0037](docs/adr/0037-an-audit-log-records-decisions-not-requests.md)). Authenticated with Firebase ID tokens.
+- **Ingestion & Player Config** — High-throughput gzip/zstd event batch and log/crash stream ingestion ([ADR 0026](docs/adr/0026-compressed-json-and-derived-event-ids.md), [ADR 0050](docs/adr/0050-logs-are-a-stream-of-their-own-billed-as-they-cost.md)), server-evaluated player targeting and configuration ([ADR 0027](docs/adr/0027-targeting-is-evaluated-on-the-server.md)), and receipt verification across App Store, Google Play and Steam ([ADR 0048](docs/adr/0048-verified-purchases-win.md)).
+- **Reporting & Analytics** — Pre-aggregated cohort, metric, funnel, session, revenue, log and experiment queries. Every page reads a fact built for it without joins ([ADR 0046](docs/adr/0046-every-page-reads-a-fact-built-for-it.md)) and enforces query-time disclosure thresholds ([ADR 0017](docs/adr/0017-aggregate-disclosure-threshold.md)).
+- **Billing** — Lot-based credit wallets ([ADR 0036](docs/adr/0036-a-wallet-is-lots-because-credit-expires.md)), graduated rate cards, Stripe Checkout top-ups, automatic off-session top-ups, subscriptions ([ADR 0040](docs/adr/0040-stripe-funds-the-wallet.md), [ADR 0042](docs/adr/0042-plans-are-stripe-subscriptions.md)), and monthly invoicing for contracted organizations ([ADR 0045](docs/adr/0045-contracted-accounts-are-invoiced-monthly.md)).
+- **Privacy** — Data-subject erasure and export requests (§101).
+- **Operations Console** — Staff endpoints for tenant support (`X-Staff-Ticket`, `X-Staff-View-As`), catalogue and plan management, and pipeline/ClickHouse health. First admin is seeded via CLI:
+  ```bash
+  go run ./apps/backend/cmd/staff add you@playersense.dev --roles admin
+  go run ./apps/backend/cmd/staff list
+  ```
+
+The full HTTP contract is served at `GET /openapi.json` (or emitted without starting a server via `go run ./apps/backend/cmd/api -openapi`), and TypeScript bindings in `packages/contracts` are generated directly from it (`pnpm contracts`).
 
 ### analytics-writer — `:21082` (health probe only)
 
@@ -762,8 +103,7 @@ that a request was made and by whom, never which player it names.
 go run ./apps/backend/cmd/analytics-writer
 ```
 
-Consumes the queue and stores batches in ClickHouse, stamping each one's cohort key so no
-cohort query ever needs a join. It never touches PostgreSQL.
+Consumes the event and log queues on separate subscriptions and stores batches in ClickHouse, stamping each event's cohort key on arrival so no cohort query ever needs a join ([ADR 0020](docs/adr/0020-a-cohort-is-assigned-on-arrival.md)) and fingerprinting log issues ([ADR 0050](docs/adr/0050-logs-are-a-stream-of-their-own-billed-as-they-cost.md)). It never touches PostgreSQL.
 
 ### archive-writer — `:21084` (health probe only)
 
@@ -771,9 +111,7 @@ cohort query ever needs a join. It never touches PostgreSQL.
 go run ./apps/backend/cmd/archive-writer
 ```
 
-Consumes the event stream on its own subscription and writes the canonical Parquet
-archive, with a manifest per object in PostgreSQL. `ARCHIVE_STORE=local` writes under
-`ARCHIVE_DIR`; `ARCHIVE_STORE=gcs` writes to the bucket.
+Consumes the event stream on its own subscription and writes the canonical Parquet archive, with a manifest per object in PostgreSQL. `ARCHIVE_STORE=local` writes under `ARCHIVE_DIR`; `ARCHIVE_STORE=gcs` writes to the bucket.
 
 ### billing-writer — `:21088` (health probe only)
 
@@ -781,20 +119,7 @@ archive, with a manifest per object in PostgreSQL. `ARCHIVE_STORE=local` writes 
 go run ./apps/backend/cmd/billing-writer
 ```
 
-Charges tracked players as they arrive, on its own subscription: counts who is new this month,
-queues what they cost, and settles the queue into wallets — within `BILLING_SETTLE_AFTER` (5 minutes), or
-within seconds when a balance would cross zero or its top-up threshold
-([ADR 0044](docs/adr/0044-usage-settles-when-it-matters.md)); the billing page's `live` balance already
-takes off what is queued. It deletes player sets older than last month, and queue rows a year after they
-settled; with `STRIPE_SECRET_KEY` set, it also charges saved cards for balances
-below their automatic top-up threshold, and closes invoiced organizations' months into Stripe invoices
-every `BILLING_INVOICE_EVERY` ([ADR 0045](docs/adr/0045-contracted-accounts-are-invoiced-monthly.md)). Needs PostgreSQL; Valkey only makes it faster — it answers
-"already counted this month" and holds each organization's pricing, so a busy organization costs no
-database reads to price. `BILLING_LOAD=1 go test ./apps/backend/internal/charging -run TestLoad -v`
-pushes a million batches through four writers and checks every organization's books. Refuses to start without a
-`BILLING_DIGEST_KEY` of 32 bytes or more — and that key must never change mid-month, or every player
-of the month is new again and charged twice. Ingestion never waits for it
-([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)).
+Charges tracked players as they arrive on its own subscription ([ADR 0039](docs/adr/0039-players-are-charged-as-they-arrive.md)): counts who is new this month, queues what they cost on the plan's rate card, and settles the queue into wallets ([ADR 0044](docs/adr/0044-usage-settles-when-it-matters.md)). With `STRIPE_SECRET_KEY` set, it also runs automatic off-session top-ups ([ADR 0041](docs/adr/0041-top-ups-are-queued-by-the-charge-pricing-is-cached.md)) and closes contracted organizations' months into Stripe invoices ([ADR 0045](docs/adr/0045-contracted-accounts-are-invoiced-monthly.md)). Ingestion never waits for it.
 
 ### worker — `:21086` (health probe only)
 
@@ -803,43 +128,30 @@ go run ./apps/backend/cmd/worker        # long-running: both loops, on their sch
 go run ./apps/backend/cmd/worker once   # one pass of each, then exit
 ```
 
-Two loops on two cadences, because §79's list is two kinds of work.
+Two loops on two cadences:
 
-**The derivation**, nightly at `WORKER_DERIVE_AT`. Rebuilds the cohort facts, their
-denominators, the behavioural buckets, the daily/monthly metrics, complete sessions by day, the
-lifecycle split of returning players and each experiment arm's outcomes: everything the
-reporting routes serve that a view cannot build. Until it runs, every chart reads zero while ingestion is perfectly healthy.
+- **The derivation**, nightly at `WORKER_DERIVE_AT`. Rebuilds the cohort facts, their denominators, the behavioural buckets, the daily/monthly metrics, complete sessions by day, the lifecycle split of returning players and each experiment arm's outcomes: everything the reporting routes serve that a materialized view cannot build.
+- **The lifecycle pass**, every `WORKER_JANITOR_EVERY`. Runs archive expiry (§60), data-subject erasures including archive Parquet rewrites ([ADR 0025](docs/adr/0025-an-erasure-rewrites-the-archive.md)), data-subject exports (§101), scheduled report runs, store refund sweeps, log metering and issue spike detection ([ADR 0050](docs/adr/0050-logs-are-a-stream-of-their-own-billed-as-they-cost.md), [ADR 0051](docs/adr/0051-rules-route-events-to-channels.md)), and the daily staff growth digest ([ADR 0053](docs/adr/0053-staff-hear-of-the-business-through-two-slack-channels.md)).
 
-Whole months, never a trailing window: each row of a cohort fact belongs to exactly one
-activity-month partition, and `REPLACE PARTITION` swaps a partition wholesale. Denominators
-are rebuilt before numerators, so a returner can never be divided by a cohort size computed
-before they arrived. Running it twice produces the same tables.
+### Frontend apps
 
-**The lifecycle pass**, every `WORKER_JANITOR_EVERY`. Three jobs that are each waiting on
-something, which is why they do not wait for the night:
+```bash
+pnpm install
+pnpm dev:landing   # http://localhost:3000
+pnpm dev:client    # http://localhost:3001
+pnpm dev:admin     # http://localhost:3002
+```
 
-- **Archive expiry** (§60) sweeps `delete_after` on the manifests, deletes the object and
-  keeps the row — an object deleted on the twentieth is still billable for the twenty days it
-  existed.
-- **Erasures** (§61) purge one actor from `events_raw`, both device-keyed summaries, their
-  purchases and the archive objects holding them. An archive object is *rewritten*
-  without the person rather than deleted, because it holds an hour of everyone else too
-  ([ADR 0025](docs/adr/0025-an-erasure-rewrites-the-archive.md)).
-- **Exports** (§101) assemble one actor's data into a bundle in the archive bucket, and
-  remove it when its term is up.
+When changing API routes or schemas, regenerate the TypeScript client contract:
 
-None of the three can stop the others: a bucket outage that blocks expiry must not block an
-erasure with a legal deadline on it, so a pass reports every failure rather than the first.
-
-`once` is what a scheduled Stage 2 deployment uses — a Cloud Run Job beats a process
-holding a timer.
+```bash
+pnpm contracts
+pnpm contracts:check
+```
 
 ## SDK
 
-The protocol is implemented **once**, in Rust, with no I/O of its own: sessions, consent,
-batching, the disk spool, retry and backoff, deduplication and the response table. A binding
-supplies a host — a clock, a file, an HTTP call — and a facade in its own idiom, so the same
-core runs on every platform rather than being reimplemented five times and drifting.
+The protocol is implemented **once**, in Rust, with no I/O of its own: sessions, consent, batching, the disk spool, retry and backoff, deduplication and the response table. A binding supplies a host — a clock, a file, an HTTP call — and a facade in its own idiom, so the same core runs on every platform rather than being reimplemented five times and drifting.
 
 ```bash
 cd sdk && cargo test                  # the protocol, and the ABI over it
@@ -848,29 +160,23 @@ cd sdk/unity && ./install-plugins.sh  # put them in the Unity package
 cd sdk/unity && ./verify.sh           # compile the package and run its tests, in real Unity
 ```
 
-`sdk/unity` is the first binding. A game pastes its project key into Project Settings and
-writes one line:
+`sdk/unity` is the first binding. A game pastes its project key into Project Settings and writes one line:
 
 ```csharp
 PlayerSense.Analytics.Track("level_completed", new() { ["level"] = 12 });
 PlayerSense.Context.Player.Set("rank", "diamond");
 ```
 
-No `await`, no callback, no result to check, nothing to wrap in `try`/`catch`
-([sdk/unity/README.md](sdk/unity/README.md)). The native libraries are not committed — an
-unstripped iOS archive is 21 MB against ~550 KB of linked code — so a checkout builds them
-with the two scripts above.
+No `await`, no callback, no result to check, nothing to wrap in `try`/`catch` ([sdk/unity/README.md](sdk/unity/README.md)). The native libraries are not committed — an unstripped iOS archive is 21 MB against ~550 KB of linked code — so a checkout builds them with the two scripts above.
 
 ## Storage tiers
 
-`events_raw` and `player_activity_daily` sit on a **hot/cold storage policy**, so the §33
-hot window is cache residency rather than a retention limit: old parts move off local NVMe
-and stay queryable in place. Retention is unchanged and still per project — `expire_at` is
-derived from the row's own retention tier.
+`events_raw`, `logs`, and `player_activity_daily` sit on a **hot/cold storage policy**, so the §33 hot window is cache residency rather than a retention limit: old parts move off local NVMe and stay queryable in place ([ADR 0024](docs/adr/0024-the-hot-window-is-a-cache-not-a-retention-limit.md)). Retention is unchanged and still per project — `expire_at` is derived from the row's own retention tier.
 
 | Table | Moves to cold after | Why |
 |---|---|---|
-| `events_raw` | 7 days | The largest table; nothing on the dashboard path reads it |
+| `logs` | 2 days | High volume; rollups stay on hot disk, only old text searches reach cold ([ADR 0050](docs/adr/0050-logs-are-a-stream-of-their-own-billed-as-they-cost.md)) |
+| `events_raw` | 7 days | The largest analytics table; nothing on the dashboard path reads it |
 | `player_activity_daily` | 90 days | §33.1's other big one. Three times clear of the derivation's two-month rebuild window |
 | `player_lifetime` | never | `player_lifetime_v` is on the query path (§29.10) |
 
@@ -882,19 +188,18 @@ docker exec playersense-clickhouse clickhouse-client --port 9000 \
       WHERE table='events_raw' AND active GROUP BY partition, disk_name ORDER BY partition"
 ```
 
-Locally `cold` is a second directory. In production it is a GCS bucket — see
-`infra/stage1/compose/clickhouse/config.d/storage.xml`, which carries the disk definition
-and reads its credentials from the environment. See [ADR 0024](docs/adr/0024-the-hot-window-is-a-cache-not-a-retention-limit.md).
+Locally `cold` is a second directory. In production it is a GCS bucket — see `infra/stage1/compose/clickhouse/config.d/storage.xml`, which carries the disk definition and reads its credentials from the environment.
 
 ## Tests
 
 ```bash
 go test ./apps/backend/... -race
+pnpm contracts:check && pnpm lint && pnpm typecheck && pnpm build
 cd sdk && cargo test                      # the SDK protocol and its C ABI
 cd sdk && cargo clippy --all-targets      # --all-targets, or the test fixtures go unlinted
 cd sdk && ./build-native.sh               # native libraries, and what they export
 go run ./apps/backend/cmd/cohortcheck     # 15 correctness checks against real derived data
-go run ./apps/backend/cmd/archivecheck   # Appendix C.6: is anything about to expire unarchived?
+go run ./apps/backend/cmd/archivecheck    # Appendix C.6: is anything about to expire unarchived?
 go run ./apps/backend/cmd/wiresize        # what a batch weighs, four ways
 ```
 
@@ -907,46 +212,19 @@ cd sdk && cargo +nightly miri test -p playersense-ffi --test abi -- \
   --skip a_batch_is_spooled --skip track_reports_consent_outcomes
 ```
 
-The skips are the nine tests that compress a batch — gzip under an interpreter takes longer
-than the run is worth, and the unsafe code they add over the rest is one struct construction.
+The skips are the nine tests that compress a batch — gzip under an interpreter takes longer than the run is worth, and the unsafe code they add over the rest is one struct construction.
 
-`cargo test` runs the protocol conformance suite — every scenario in
-[docs/sdk/protocol.md](docs/sdk/protocol.md) §13 against a fake host, so "the player quits
-after eight seconds with no network" and "the process is killed between spooling and the 202"
-are deterministic tests rather than a device farm. The ABI suite drives the same core through
-the real `extern "C"` symbols, which is the half a binding can get wrong.
+`cargo test` runs the protocol conformance suite — every scenario in [docs/sdk/protocol.md](docs/sdk/protocol.md) §13 against a fake host, so "the player quits after eight seconds with no network" and "the process is killed between spooling and the 202" are deterministic tests rather than a device farm. The ABI suite drives the same core through the real `extern "C"` symbols, which is the half a binding can get wrong.
 
-A binding's own tests cover only what is left: the seam. `sdk/unity/verify.sh` builds a
-throwaway project around the package, compiles it and runs four play-mode tests — that the C#
-`[StructLayout]` declarations still match the native library, that the host's delegates survive
-a garbage collection, that the installation identifier lives where the platform will not back
-it up, and that every call is safe before the SDK has started. Each of those fails on a device
-and nowhere else, and none of them is reachable from Rust.
-
-The layout one is the one to keep honest: add a field to `Native.PsConfig` and it fails with
-*"PsConfig: the binding says 272 and this binary says 264"*, and the SDK refuses to start
-rather than writing past the end of a struct.
+A binding's own tests cover only what is left: the seam. `sdk/unity/verify.sh` builds a throwaway project around the package, compiles it and runs four play-mode tests — that the C# `[StructLayout]` declarations still match the native library, that the host's delegates survive a garbage collection, that the installation identifier lives where the platform will not back it up, and that every call is safe before the SDK has started. Each of those fails on a device and nowhere else, and none of them is reachable from Rust.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml`, on every push. Four jobs, because they fail for four different
-reasons: the Rust protocol and its ABI (fmt, clippy `--all-targets`, tests, and the
-header-drift check), Miri over the boundary code, Go against the real stack in Docker, and a
-native matrix across macOS, Linux and Windows runners.
+`.github/workflows/ci.yml`, on every push. Five jobs, because they fail for five different reasons:
+1. **Rust** — the protocol and its ABI (`fmt`, `clippy --all-targets`, tests, and the `cbindgen` header-drift check).
+2. **Miri** — pointer and handle boundary tests under the interpreter.
+3. **Go** — `go vet`, `gofmt`, `go test -race`, and `migrate verify` against the real PostgreSQL, ClickHouse and Valkey stack in Docker.
+4. **Native** — cross-compilation matrix across Apple (macOS arm64/x86_64, iOS), Linux/Android, and Windows MSVC runners ([docs/sdk/platforms.md](docs/sdk/platforms.md)).
+5. **Node** — OpenAPI contract drift check (`pnpm contracts:check`), lint, typecheck, and build across `apps/*` and `packages/*`.
 
-That last job is the one that changes what can ship. Windows, Linux and Intel macOS cannot be
-built on an Apple-silicon developer machine — no MSVC toolchain, no Linux linker — so until
-now those three libraries did not exist and the Unity package could not ship to PC at all.
-See [docs/sdk/platforms.md](docs/sdk/platforms.md).
-
-**What CI does not cover: Unity.** `verify.sh` needs a Unity editor and a licence, and the
-play-mode tests need the native plugin for whichever platform the runner is. It is run by hand
-before a release, and a workflow that had never executed would be worse than admitting that.
-
-`cohortcheck` seeds synthetic events with a known answer and asserts the pipeline reproduces
-it. It is the independent second opinion on every number the reporting API serves.
-
-`archivecheck` compares what ClickHouse still holds against what the archive has, and fails
-when a day would reach its TTL with no archive. Nothing can *enforce* that ordering — a
-ClickHouse TTL is a declarative instruction to a background merge, with no hook to wait on —
-so the invariant is held by margin, and this is what measures it.
+**What CI does not cover: Unity.** `verify.sh` needs a Unity editor and a licence, and the play-mode tests need the native plugin for whichever platform the runner is. It is run by hand before a release.
